@@ -1,0 +1,37 @@
+{
+	"schemaVersion": 1,
+	"id": "wrench-display",
+	"version": "${version}",
+	"name": "Wrench Display",
+	"description": "A wrench and a blueprint for placing and editing block, item and text displays. Works server-side with vanilla clients; the client mod adds a blueprint paste screen.",
+	"authors": [
+		"harlik"
+	],
+	"license": "CC0-1.0",
+	"icon": "assets/wrench-display/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"dev.harlik.wrenchdisplay.fabric.WrenchDisplay"
+		],
+		"client": [
+			"dev.harlik.wrenchdisplay.fabric.client.WrenchDisplayClient"
+		]
+	},
+	"mixins": [
+		"wrench-display.mixins.json",
+		{
+			"config": "wrench-display.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.20.1",
+		"minecraft": "~26.3",
+		"java": ">=25",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"fabric-permissions-api-v0": "*"
+	}
+}
