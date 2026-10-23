@@ -53,8 +53,11 @@ public final class Settings {
 	public static final class Blueprint {
 		/** Max paste length on the client-mod screen. Real BDEngine models run to 60 KB and more. */
 		public int maxLength = 131072;
-		/** Max paste length in the vanilla dialog; capped further by the protocol limit at runtime. */
-		public int vanillaMaxLength = 32000;
+		/**
+		 * Max paste length in the vanilla dialog. The protocol can't carry more than about 16000 characters
+		 * (32 KiB of NBT at 2 bytes per character), so higher values are capped; bigger models need the client mod.
+		 */
+		public int vanillaMaxLength = 16000;
 		public int maxParts = 256;
 		public int maxPartsWithBypass = 2048;
 		/** Survival: the whole model must fit in this box (blocks per axis). */
@@ -64,7 +67,10 @@ public final class Settings {
 	}
 
 	public static final class ResourcePack {
-		/** Paper only: push this pack to players on join. Fabric servers use server.properties. */
+		/**
+		 * Push this pack to players on join (the zip from {@code ./gradlew :resourcepack:assemble}, hosted somewhere
+		 * public). Leave empty to skip, e.g. when server.properties already sends a pack.
+		 */
 		public String url = "";
 		public String sha1 = "";
 		public boolean required = false;

@@ -1,0 +1,39 @@
+plugins {
+	id 'base'
+}
+
+// The resource pack for vanilla clients: the shared assets from :common plus pack metadata.
+// Server owners host the zip and set its URL and SHA-1 (server.properties, or resourcePack in the mod/plugin config).
+def packZip = tasks.register('packZip', Zip) {
+	group = 'build'
+	description = 'Builds the Wrench Display resource pack zip.'
+	archiveBaseName = "${rootProject.name}-pack"
+	destinationDirectory = layout.buildDirectory.dir('distributions')
+	// Stable zips: the SHA-1 only changes when the content does.
+	preserveFileTimestamps = false
+	reproducibleFileOrder = true
+
+	from(project(':common').file('src/main/resources')) {
+		include 'assets/**'
+	}
+	from('src/pack')
+}
+
+def packSha1 = tasks.register('packSha1') {
+	group = 'build'
+	description = 'Writes the SHA-1 of the resource pack next to the zip.'
+	def zipFile = packZip.flatMap { it.archiveFile }
+	inputs.file(zipFile)
+	def shaFile = layout.buildDirectory.file("distributions/${rootProject.name}-pack-${project.version}.zip.sha1")
+	outputs.file(shaFile)
+	doLast {
+		def digest = java.security.MessageDigest.getInstance('SHA-1')
+		def hash = digest.digest(zipFile.get().asFile.bytes).encodeHex().toString()
+		shaFile.get().asFile.text = hash + '\n'
+		logger.lifecycle("Resource pack: ${zipFile.get().asFile.name}  sha1=${hash}")
+	}
+}
+
+tasks.named('assemble') {
+	dependsOn packZip, packSha1
+}

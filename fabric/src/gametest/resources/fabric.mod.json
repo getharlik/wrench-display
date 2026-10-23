@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "wrench-display-gametest",
+	"version": "1.0.0",
+	"name": "Wrench Display game tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-gametest": [
+			"dev.harlik.wrenchdisplay.fabric.test.WrenchDisplayGameTests"
+		]
+	},
+	"depends": {
+		"wrench-display": "*"
+	}
+}

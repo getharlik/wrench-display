@@ -1,0 +1,30 @@
+{
+	"type": "minecraft:crafting_shaped",
+	"category": "misc",
+	"pattern": [
+		" L ",
+		"LPL",
+		" L "
+	],
+	"key": {
+		"L": "minecraft:lapis_lazuli",
+		"P": "minecraft:paper"
+	},
+	"result": {
+		"id": "minecraft:paper",
+		"components": {
+			"minecraft:item_model": "wrench-display:blueprint",
+			"minecraft:item_name": {
+				"translate": "item.wrench-display.blueprint",
+				"fallback": "Blueprint"
+			},
+			"minecraft:custom_data": {
+				"wrench_display": {
+					"type": "blueprint"
+				}
+			},
+			"minecraft:max_stack_size": 1,
+			"!minecraft:cooking_fuel": {}
+		}
+	}
+}

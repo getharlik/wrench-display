@@ -4,11 +4,11 @@ plugins {
 }
 
 repositories {
-	// Add repositories to retrieve artifacts from in here.
-	// You should only use this when depending on other mods because
-	// Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-	// See https://docs.gradle.org/current/userguide/declaring_repositories.html
-	// for more information about repositories.
+	// Common Protection API (claim/protection mod bridge)
+	maven {
+		name = 'Nucleoid'
+		url = 'https://maven.nucleoid.xyz/'
+	}
 }
 
 loom {
@@ -19,6 +19,15 @@ loom {
 			sourceSet sourceSets.main
 			sourceSet sourceSets.client
 		}
+	}
+}
+
+fabricApi {
+	// In-game tests (./gradlew :fabric:runGameTest) in their own source set, not shipped in the mod jar.
+	configureTests {
+		createSourceSet = true
+		modId = "wrench-display-gametest"
+		eula = true
 	}
 }
 
@@ -33,6 +42,15 @@ dependencies {
 	// Shared core (parser, edit math, limits), nested into the mod jar.
 	implementation project(':common')
 	include project(':common')
+
+	// One API for claim mods (FTB Chunks, Open Parties and Claims, Flan, …); tiny, so it is bundled.
+	implementation "eu.pb4:common-protection-api:${project.common_protection_api_version}"
+	include "eu.pb4:common-protection-api:${project.common_protection_api_version}"
+}
+
+// The BDEngine fixtures from :common's unit tests are reused by the game tests.
+sourceSets.named("gametest") {
+	resources.srcDir(project(':common').file('src/test/resources'))
 }
 
 processResources {

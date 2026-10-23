@@ -1,0 +1,7 @@
+{
+	"pack": {
+		"description": "Wrench Display: models for the wrench and blueprint",
+		"min_format": [97, 1],
+		"max_format": 97
+	}
+}

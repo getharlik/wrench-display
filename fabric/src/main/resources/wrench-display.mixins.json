@@ -3,6 +3,13 @@
 	"package": "dev.harlik.wrenchdisplay.fabric.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
+		"CartographyTableMenuMixin",
+		"DisplayAccessor",
+		"IngredientMixin",
+		"ItemCostMixin",
+		"ServerCommonPacketListenerImplMixin",
+		"ServerGamePacketListenerImplMixin",
+		"StackedItemContentsMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

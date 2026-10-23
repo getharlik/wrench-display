@@ -13,3 +13,4 @@ rootProject.name = 'wrench-display'
 
 include 'common'
 include 'fabric'
+include 'resourcepack'
