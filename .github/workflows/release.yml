@@ -2,8 +2,8 @@
 # wrench-display-pack):
 #   git tag v1.1 && git push origin v1.1
 # The tag must match `version` in gradle.properties, and CHANGELOG.md needs a "## 1.1" section.
-# Needs the MODRINTH_TOKEN repository secret: a Modrinth token with the "Create versions" and "Read projects" scopes
-# (a draft project is invisible without "Read projects"). Optionally the MODRINTH_PROJECT_ID repository variable.
+# Needs the MODRINTH_TOKEN repository secret: a Modrinth token with the "Create versions", "Read projects" and
+# "Read versions" scopes (draft projects and their versions are invisible without the read scopes). Optionally the MODRINTH_PROJECT_ID repository variable.
 
 name: release
 on:

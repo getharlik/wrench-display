@@ -86,7 +86,14 @@ def lookup_project(slug, variable, token):
 def existing_versions(project_id, token):
     if not token:
         return {}
-    return {v["version_number"]: v["id"] for v in request("GET", f"/project/{project_id}/version", token)}
+    try:
+        versions = request("GET", f"/project/{project_id}/version", token)
+    except SystemExit as e:
+        if "404" in str(e):
+            raise SystemExit(f"Modrinth won't list the versions of project {project_id} with this token. While the project "
+                             "is a draft, the token needs the 'Read versions' scope (with 'Read projects' and 'Create versions').")
+        raise
+    return {v["version_number"]: v["id"] for v in versions}
 
 
 def upload(project_id, data, file, token, dry_run, existing):
