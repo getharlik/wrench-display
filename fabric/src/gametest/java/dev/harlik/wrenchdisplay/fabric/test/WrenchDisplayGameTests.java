@@ -51,7 +51,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class WrenchDisplayGameTests {
-	private static final List<String> FIXTURES = List.of("model2.txt", "model3_part2.txt");
+	private static final List<String> FIXTURES = List.of("desk.txt", "two_heads.txt");
 
 	/** Assertions with plain-text messages; before 1.21.11 GameTestHelper only takes text components. */
 	private static void check(GameTestHelper helper, boolean condition, String message) {
@@ -126,7 +126,7 @@ public class WrenchDisplayGameTests {
 		ItemStack blueprint = ModItems.blueprint();
 		player.setItemInHand(InteractionHand.MAIN_HAND, blueprint);
 
-		String text = fixture("model3_part2.txt");
+		String text = fixture("two_heads.txt");
 		BlueprintHandler.submitPaste(player, text, text.length() + 1);
 		UUID id = ModItems.blueprintId(player.getMainHandItem());
 		check(helper, id != null, "blueprint was not filled");
@@ -216,7 +216,7 @@ public class WrenchDisplayGameTests {
 		FakePlayer player = player(helper, "blueprint-tester");
 		player.setGameMode(GameType.CREATIVE);
 		player.setItemInHand(InteractionHand.MAIN_HAND, ModItems.blueprint());
-		String text = fixture("model3_part2.txt");
+		String text = fixture("two_heads.txt");
 		BlueprintHandler.submitPaste(player, text, text.length() + 1);
 		check(helper, ModItems.blueprintId(player.getMainHandItem()) != null, "blueprint was filled");
 

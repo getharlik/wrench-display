@@ -41,7 +41,7 @@ class BlueprintValidatorTest {
 
 	@Test
 	void textPartsNeedPermission() {
-		List<String> problems = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings,
+		List<String> problems = english(BlueprintValidator.validate(parseOk(fixture("desk.txt")), settings,
 				node -> !node.equals(Permissions.TEXT), SHAPES));
 		assertTrue(problems.stream().anyMatch(p -> p.contains("text displays need permission")), problems.toString());
 	}
@@ -49,9 +49,9 @@ class BlueprintValidatorTest {
 	@Test
 	void realShapesKeepStretchedCandlesWithinLimits() {
 		PermissionView textOnly = node -> node.equals(Permissions.TEXT);
-		List<String> withShapes = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, SHAPES));
+		List<String> withShapes = english(BlueprintValidator.validate(parseOk(fixture("desk.txt")), settings, textOnly, SHAPES));
 		assertEquals(List.of(), withShapes);
-		List<String> fullCubes = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, BlueprintValidator.BlockInfo.NONE));
+		List<String> fullCubes = english(BlueprintValidator.validate(parseOk(fixture("desk.txt")), settings, textOnly, BlueprintValidator.BlockInfo.NONE));
 		assertTrue(fullCubes.stream().anyMatch(p -> p.contains("blocks long")), "a full cube stretched 5× is too long: " + fullCubes);
 	}
 

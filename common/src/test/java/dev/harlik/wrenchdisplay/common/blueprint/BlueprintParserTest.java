@@ -58,29 +58,29 @@ class BlueprintParserTest {
 	}
 
 	@Test
-	void model2PartCountsAndKinds() {
-		BlueprintModel model = parseOk(fixture("model2.txt"));
+	void deskPartCountsAndKinds() {
+		BlueprintModel model = parseOk(fixture("desk.txt"));
 		Map<DisplayKind, Long> kinds = model.parts().stream().collect(Collectors.groupingBy(BlueprintPart::kind, Collectors.counting()));
-		assertEquals(60L, kinds.get(DisplayKind.BLOCK));
-		assertEquals(24L, kinds.get(DisplayKind.ITEM));
+		assertEquals(8L, kinds.get(DisplayKind.BLOCK));
+		assertEquals(8L, kinds.get(DisplayKind.ITEM));
 		assertEquals(2L, kinds.get(DisplayKind.TEXT));
 	}
 
 	@Test
 	void summonOffsetIsFoldedIntoTranslation() {
-		BlueprintPart first = parseOk(fixture("model2.txt")).parts().get(0);
-		// transformation [1,0,0,-2.25, 0,..,2.1119, 0,..,2, 0,0,0,1] summoned at ~-0.5 ~-0.5 ~-0.5
-		assertEquals(-2.75f, first.matrix()[3], EPS);
-		assertEquals(1.6119f, first.matrix()[7], EPS);
-		assertEquals(1.5f, first.matrix()[11], EPS);
-		// rotation/shear part is kept untouched
-		assertEquals(0.9531448656f, first.matrix()[5], EPS);
-		assertEquals(0.3025142397f, first.matrix()[9], EPS);
+		BlueprintPart first = parseOk(fixture("desk.txt")).parts().get(0);
+		// transformation [1,0,0,0.75, 0,..,1.25, 0,..,0.5, 0,0,0,1] summoned at ~-0.5 ~-0.5 ~-0.5
+		assertEquals(0.25f, first.matrix()[3], EPS);
+		assertEquals(0.75f, first.matrix()[7], EPS);
+		assertEquals(0f, first.matrix()[11], EPS);
+		// the rotation part (tipped 15° about X) is kept untouched
+		assertEquals(0.9659258f, first.matrix()[5], EPS);
+		assertEquals(0.258819f, first.matrix()[9], EPS);
 	}
 
 	@Test
 	void blockStatesUseIdAndPropertiesDialect() {
-		List<BlueprintPart> blocks = parseOk(fixture("model2.txt")).parts().stream().filter(p -> p.kind() == DisplayKind.BLOCK).toList();
+		List<BlueprintPart> blocks = parseOk(fixture("desk.txt")).parts().stream().filter(p -> p.kind() == DisplayKind.BLOCK).toList();
 		BlueprintPart.BlockSpec candle = blocks.get(0).block();
 		assertEquals("minecraft:brown_candle", candle.id());
 		assertEquals(Map.of("candles", "1", "lit", "false", "waterlogged", "false"), candle.properties());
@@ -90,59 +90,59 @@ class BlueprintParserTest {
 
 	@Test
 	void emptyProfileIdIsDropped() {
-		List<BlueprintPart.ItemSpec> heads = parseOk(fixture("model2.txt")).parts().stream()
+		List<BlueprintPart.ItemSpec> heads = parseOk(fixture("desk.txt")).parts().stream()
 				.filter(p -> p.kind() == DisplayKind.ITEM && p.item().id().equals("minecraft:player_head"))
 				.map(BlueprintPart::item).toList();
-		assertEquals(21, heads.size());
+		assertEquals(5, heads.size());
 		for (BlueprintPart.ItemSpec head : heads) {
 			assertFalse(head.componentsSnbt().contains("[I;]"), "empty uuid must be removed: " + head.componentsSnbt());
 		}
 		// heads with a valid uuid keep it
-		assertTrue(heads.get(0).componentsSnbt().contains("[I;-1105934978,-1241822823,-1966479046,1303884125]"));
+		assertTrue(heads.get(0).componentsSnbt().contains("[I;12345,-67890,13579,-24680]"));
 	}
 
 	@Test
 	void headsAreMatchedBySkin() {
-		Map<MaterialKey, Integer> materials = parseOk(fixture("model2.txt")).materials();
+		Map<MaterialKey, Integer> materials = parseOk(fixture("desk.txt")).materials();
 		Map<MaterialKey, Integer> heads = materials.entrySet().stream()
 				.filter(e -> e.getKey().id().equals("minecraft:player_head"))
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-		assertEquals(15, heads.size(), "21 heads use 15 distinct skins");
-		assertEquals(21, heads.values().stream().mapToInt(Integer::intValue).sum());
+		assertEquals(3, heads.size(), "5 heads use 3 distinct skins");
+		assertEquals(5, heads.values().stream().mapToInt(Integer::intValue).sum());
 		assertTrue(heads.keySet().stream().allMatch(k -> k.matchKey().startsWith("skin:")));
-		// the four xDTOMAS_YT heads (empty uuid) share one skin
-		assertEquals(4, heads.get(MaterialKey.item("minecraft:player_head",
-				"skin:320a63a72928c622c70a5328bb7dbceb97a07ac5f0b70b75ca10354ec1f7910d")));
+		// three heads share one skin: with and without uuid, and with a different timestamp in the texture data
+		assertEquals(3, heads.get(MaterialKey.item("minecraft:player_head",
+				"skin:4f1303722ffb058bdff28d8194c8501db2e131da3309a8e7a1e1c54ad137f2a6")));
 		// plain items have no match key and text parts cost nothing
 		assertEquals(2, materials.get(MaterialKey.item("minecraft:tripwire_hook", null)));
 		assertEquals(1, materials.get(MaterialKey.item("minecraft:creeper_banner_pattern", null)));
-		assertEquals(60, materials.entrySet().stream().filter(e -> e.getKey().type() == MaterialKey.Type.BLOCK)
+		assertEquals(8, materials.entrySet().stream().filter(e -> e.getKey().type() == MaterialKey.Type.BLOCK)
 				.mapToInt(Map.Entry::getValue).sum());
 	}
 
 	@Test
 	void textDisplaysKeepJsonAndRoundFloatLineWidth() {
-		List<BlueprintPart.TextSpec> texts = parseOk(fixture("model2.txt")).parts().stream()
+		List<BlueprintPart.TextSpec> texts = parseOk(fixture("desk.txt")).parts().stream()
 				.filter(p -> p.kind() == DisplayKind.TEXT).map(BlueprintPart::text).toList();
 		BlueprintPart.TextSpec text = texts.get(0);
 		assertEquals(221, text.lineWidth());
 		assertEquals(0, text.background());
-		assertTrue(text.textJson().startsWith("[{\"text\":\"●\",\"color\":\"#E9AE0C\",\"bold\":true"), text.textJson());
+		assertTrue(text.textJson().startsWith("[{\"text\":\"●\",\"color\":\"#F2B33D\",\"bold\":true"), text.textJson());
 		assertTrue(text.textJson().contains("\"font\":\"minecraft:uniform\""));
 	}
 
 	@Test
 	void multipleCommandsMergeIntoOneModel() {
-		int single = parseOk(fixture("model2.txt")).parts().size();
-		int small = parseOk(fixture("model3_part2.txt")).parts().size();
+		int single = parseOk(fixture("desk.txt")).parts().size();
+		int small = parseOk(fixture("two_heads.txt")).parts().size();
 		assertEquals(2, small);
-		BlueprintModel merged = parseOk(fixture("model2.txt") + "\n\n" + fixture("model3_part2.txt"));
+		BlueprintModel merged = parseOk(fixture("desk.txt") + "\n\n" + fixture("two_heads.txt"));
 		assertEquals(single + small, merged.parts().size());
 	}
 
 	@Test
 	void boundsCoverTheModel() {
-		float[] size = parseOk(fixture("model2.txt")).size();
+		float[] size = parseOk(fixture("desk.txt")).size();
 		for (float s : size) {
 			assertTrue(s > 1 && s < 10, "unexpected model size " + s);
 		}
@@ -193,7 +193,7 @@ class BlueprintParserTest {
 		assertEquals("No summon command for a block, item or text display was found",
 				BlueprintParser.parse("say hello", limits).error().toFallbackString());
 		assertTrue(BlueprintParser.parse("x".repeat(1001), limits).error().toFallbackString().contains("limit is 1000"));
-		assertTrue(BlueprintParser.parse(fixture("model3_part2.txt"), new BlueprintParser.Limits(100_000, 1)).error().toFallbackString()
+		assertTrue(BlueprintParser.parse(fixture("two_heads.txt"), new BlueprintParser.Limits(100_000, 1)).error().toFallbackString()
 				.contains("2 parts; the limit is 1"));
 		assertTrue(BlueprintParser.parse("summon block_display ^ ^ ^ {}", limits).error().toFallbackString().contains("Local coordinates"));
 		assertEquals("The commands contain no visible displays",

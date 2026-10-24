@@ -125,7 +125,8 @@ is checked as building at that spot.
 ### The resource pack
 
 Vanilla clients need `wrench-display-pack-<version>.zip` to see the wrench and blueprint models; it works on every
-supported version. Host it somewhere public and either set `resource-pack` and `resource-pack-sha1` in
+supported version. Download it from [Modrinth](https://modrinth.com/resourcepack/wrench-display-pack) (or the
+release files), host it somewhere public and either set `resource-pack` and `resource-pack-sha1` in
 `server.properties`, or let the mod send it:
 
 ```json
@@ -209,8 +210,8 @@ marked with `//? if` comments. Run `./gradlew "Set active project to <version>"`
 `./gradlew "Reset active project"` before committing.
 
 Releases: push a tag like `v1.1` (matching `version` in `gradle.properties`, with a `## 1.1` section in
-`CHANGELOG.md`). The release workflow builds, runs the game tests and uploads every jar and the resource pack to
-Modrinth.
+`CHANGELOG.md`). The release workflow builds, runs the game tests and uploads every jar to the Modrinth project
+`wrench-display` and the resource pack to `wrench-display-pack`.
 
 ## License
 

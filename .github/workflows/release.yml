@@ -1,7 +1,9 @@
-# Publishes a release to Modrinth when a version tag is pushed:
+# Publishes a release to Modrinth when a version tag is pushed (the mod jars to wrench-display, the resource pack to
+# wrench-display-pack):
 #   git tag v1.1 && git push origin v1.1
 # The tag must match `version` in gradle.properties, and CHANGELOG.md needs a "## 1.1" section.
-# Needs the MODRINTH_TOKEN repository secret (a Modrinth token with the "Create versions" scope).
+# Needs the MODRINTH_TOKEN repository secret: a Modrinth token with the "Create versions" and "Read projects" scopes
+# (a draft project is invisible without "Read projects"). Optionally the MODRINTH_PROJECT_ID repository variable.
 
 name: release
 on:
@@ -32,6 +34,8 @@ jobs:
       - name: publish to Modrinth
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+          MODRINTH_PROJECT_ID: ${{ vars.MODRINTH_PROJECT_ID }}
+          MODRINTH_PACK_PROJECT_ID: ${{ vars.MODRINTH_PACK_PROJECT_ID }}
         run: python3 .github/scripts/publish_modrinth.py "${GITHUB_REF_NAME}"
       - name: capture release files
         uses: actions/upload-artifact@v7

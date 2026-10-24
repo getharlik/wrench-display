@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Uploads a release to Modrinth: one version per Fabric jar, one for the Paper plugin.
-
-Every version also carries the resource pack zip. Run after `./gradlew build`:
+"""Uploads a release to Modrinth: one version per Fabric jar and one for the Paper plugin in the mod project,
+and the resource pack zip as a version of its own resource pack project (which the mod versions link to).
+Versions that already exist are skipped, so a failed release can be run again. Run after `./gradlew build`:
 
     MODRINTH_TOKEN=... python3 .github/scripts/publish_modrinth.py v1.1
     python3 .github/scripts/publish_modrinth.py v1.1 --dry-run   # print what would be uploaded
@@ -20,6 +20,7 @@ from pathlib import Path
 
 API = "https://api.modrinth.com/v2"
 PROJECT = "wrench-display"
+PACK_PROJECT = "wrench-display-pack"
 FABRIC_API = "P7dR8mSH"  # Modrinth project id of Fabric API
 USER_AGENT = "getharlik/wrench-display release script"
 ROOT = Path(__file__).resolve().parents[2]
@@ -66,6 +67,45 @@ def multipart(data, files):
     return b"".join(parts), f"multipart/form-data; boundary={boundary}"
 
 
+def lookup_project(slug, variable, token):
+    """The project id, from the variable or else the slug. Drafts are only visible to tokens with "Read projects"."""
+    if os.environ.get(variable):
+        return os.environ[variable]
+    if not token:
+        return slug  # dry run without a token
+    try:
+        return request("GET", f"/project/{slug}", token)["id"]
+    except SystemExit as e:
+        if "404" in str(e):
+            raise SystemExit(f"Modrinth can't see the project '{slug}' with this token. Check the slug; while the project "
+                             "is a draft, the token needs the 'Read projects' scope (and 'Create versions' to upload). "
+                             f"Alternatively set the {variable} variable to the project's id.")
+        raise
+
+
+def existing_versions(project_id, token):
+    if not token:
+        return {}
+    return {v["version_number"]: v["id"] for v in request("GET", f"/project/{project_id}/version", token)}
+
+
+def upload(project_id, data, file, token, dry_run, existing):
+    """Creates one version with a single file; returns its id (None in a dry run)."""
+    number = data["version_number"]
+    if number in existing:
+        print(f"{number}: already on Modrinth, skipped")
+        return existing[number]
+    print(f"{number}: {file.name} for {', '.join(data['game_versions'])}")
+    if dry_run:
+        return None
+    data = {**data, "project_id": project_id, "file_parts": ["file"], "primary_file": "file",
+            "version_type": "release", "featured": True, "status": "listed"}
+    body, content_type = multipart(data, [("file", file)])
+    created = request("POST", "/version", token, body, content_type)
+    print(f"  -> https://modrinth.com/version/{created['id']}")
+    return created["id"]
+
+
 def single(pattern):
     found = sorted(ROOT.glob(pattern))
     if len(found) != 1:
@@ -86,51 +126,46 @@ def main():
         raise SystemExit("MODRINTH_TOKEN is not set")
 
     notes = changelog(version)
-    pack = single(f"resourcepack/build/distributions/wrench-display-pack-{version}.zip")
-    # With the token so it also works while the project is still a draft (a dry run without one skips this).
-    project_id = request("GET", f"/project/{PROJECT}", token)["id"] if token else PROJECT
+    project_id = lookup_project(PROJECT, "MODRINTH_PROJECT_ID", token)
+    pack_project_id = lookup_project(PACK_PROJECT, "MODRINTH_PACK_PROJECT_ID", token)
 
     # Version tables are the ones with mod.mc_releases; the shared settings (deps., loomx.) parse as tables too.
     toml = tomllib.loads((ROOT / "fabric/stonecutter.properties.toml").read_text())
     releases = {mc: table for mc, table in toml.items() if isinstance(table, dict) and "mc_releases" in table.get("mod", {})}
-    uploads = []
+    every_release = [r for table in releases.values() for r in table["mod"]["mc_releases"]]
+
+    pack_version = upload(pack_project_id, {
+        "name": version,
+        "version_number": version,
+        "game_versions": every_release,
+        "loaders": ["minecraft"],
+        "dependencies": [],
+        "changelog": f"Resource pack for Wrench Display {version}.",
+    }, single(f"resourcepack/build/distributions/wrench-display-pack-{version}.zip"), token, dry_run,
+        existing_versions(pack_project_id, token))
+    # Optional: vanilla players need the pack, but it is sent by the server, and players with the mod don't need it.
+    pack = {"project_id": pack_project_id, "dependency_type": "optional"}
+    if pack_version:
+        pack["version_id"] = pack_version
+
+    existing = existing_versions(project_id, token)
     for mc, table in releases.items():
-        uploads.append({
+        upload(project_id, {
             "name": f"{version} for Fabric {mc}",
             "version_number": f"{version}+{mc}-fabric",
             "game_versions": table["mod"]["mc_releases"],
             "loaders": ["fabric"],
-            "dependencies": [{"project_id": FABRIC_API, "dependency_type": "required"}],
-            "jar": single(f"fabric/versions/{mc}/build/libs/wrench-display-fabric-{version}+{mc}.jar"),
-        })
-    every_release = [r for table in releases.values() for r in table["mod"]["mc_releases"]]
-    uploads.append({
+            "dependencies": [{"project_id": FABRIC_API, "dependency_type": "required"}, pack],
+            "changelog": notes,
+        }, single(f"fabric/versions/{mc}/build/libs/wrench-display-fabric-{version}+{mc}.jar"), token, dry_run, existing)
+    upload(project_id, {
         "name": f"{version} for Paper",
         "version_number": f"{version}-paper",
         "game_versions": every_release,
         "loaders": ["paper", "purpur", "folia"],
-        "dependencies": [],
-        "jar": single(f"paper/build/libs/wrench-display-paper-{version}.jar"),
-    })
-
-    for upload in uploads:
-        jar = upload.pop("jar")
-        data = {
-            **upload,
-            "project_id": project_id,
-            "changelog": notes,
-            "version_type": "release",
-            "featured": True,
-            "status": "listed",
-            "file_parts": ["jar", "pack"],
-            "primary_file": "jar",
-        }
-        print(f"{data['version_number']}: {jar.name} + {pack.name} for {', '.join(data['game_versions'])}")
-        if dry_run:
-            continue
-        body, content_type = multipart(data, [("jar", jar), ("pack", pack)])
-        created = request("POST", "/version", token, body, content_type)
-        print(f"  -> https://modrinth.com/project/{PROJECT}/version/{created['id']}")
+        "dependencies": [pack],
+        "changelog": notes,
+    }, single(f"paper/build/libs/wrench-display-paper-{version}.jar"), token, dry_run, existing)
 
 
 if __name__ == "__main__":

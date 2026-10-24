@@ -20,7 +20,7 @@ class PasteAssemblerTest {
 
 	@Test
 	void bigPasteRoundTrips() {
-		String paste = BlueprintParserTest.fixture("model2.txt").repeat(3); // ~88K chars, 11 pieces
+		String paste = BlueprintParserTest.fixture("desk.txt").repeat(20); // ~94K chars, 12 pieces
 		assertTrue(PasteAssembler.split(paste).length > 1);
 		assertEquals(paste, send(new PasteAssembler(), 7, paste));
 	}
