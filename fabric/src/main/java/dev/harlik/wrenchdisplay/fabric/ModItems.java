@@ -1,5 +1,6 @@
 package dev.harlik.wrenchdisplay.fabric;
 
+import dev.harlik.wrenchdisplay.fabric.compat.Compat;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
@@ -105,7 +106,7 @@ public final class ModItems {
 		root.put(TAG, marker);
 		stack.set(DataComponents.CUSTOM_DATA, CustomData.of(root));
 		stack.set(DataComponents.MAX_STACK_SIZE, 1);
-		stack.remove(DataComponents.COOKING_FUEL);
+		Compat.removeFuel(stack);
 		return stack;
 	}
 }

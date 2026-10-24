@@ -3,8 +3,8 @@ package dev.harlik.wrenchdisplay.fabric.blueprint;
 import com.google.gson.Gson;
 import dev.harlik.wrenchdisplay.common.blueprint.BlueprintParser;
 import dev.harlik.wrenchdisplay.fabric.WrenchDisplay;
+import dev.harlik.wrenchdisplay.fabric.compat.Compat;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.level.storage.LevelResource;
 
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -36,7 +36,7 @@ public final class BlueprintStore {
 	}
 
 	private static Path dir(MinecraftServer server) {
-		return server.getWorldPath(LevelResource.DATA).resolve(WrenchDisplay.MOD_ID).resolve("blueprints");
+		return Compat.worldDataDir(server).resolve(WrenchDisplay.MOD_ID).resolve("blueprints");
 	}
 
 	public static UUID save(MinecraftServer server, String text, UUID author, PreparedBlueprint prepared) throws IOException {

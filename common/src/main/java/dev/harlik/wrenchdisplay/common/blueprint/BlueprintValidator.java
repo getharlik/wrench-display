@@ -5,6 +5,7 @@ import dev.harlik.wrenchdisplay.common.Permissions;
 import dev.harlik.wrenchdisplay.common.Settings;
 import dev.harlik.wrenchdisplay.common.edit.DisplayKind;
 import dev.harlik.wrenchdisplay.common.math.Matrices;
+import dev.harlik.wrenchdisplay.common.text.Message;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -39,60 +40,61 @@ public final class BlueprintValidator {
 	}
 
 	/** @return player-facing problems; empty when the blueprint may be placed */
-	public static List<String> validate(BlueprintModel model, Settings settings, PermissionView permissions, BlockInfo blocks) {
-		List<String> problems = new ArrayList<>();
+	public static List<Message> validate(BlueprintModel model, Settings settings, PermissionView permissions, BlockInfo blocks) {
+		List<Message> problems = new ArrayList<>();
 		Settings.Blueprint limits = settings.blueprint;
 		boolean sizeBypass = permissions.has(Permissions.BYPASS_BLUEPRINT_SIZE);
 
 		int maxParts = sizeBypass ? limits.maxPartsWithBypass : limits.maxParts;
 		if (model.parts().size() > maxParts) {
-			problems.add("Too many parts: " + model.parts().size() + " (limit " + maxParts + ")");
+			problems.add(Message.of("problem.too_many_parts", "Too many parts: %s (limit %s)", model.parts().size(), maxParts));
 		}
 		if (!sizeBypass) {
 			float[] size = size(model, blocks);
 			if (size[0] > limits.maxModelSize + 1e-3 || size[1] > limits.maxModelSize + 1e-3 || size[2] > limits.maxModelSize + 1e-3) {
-				problems.add(String.format(Locale.ROOT, "Model is %.1f×%.1f×%.1f blocks (limit %.0f per side)",
-						size[0], size[1], size[2], limits.maxModelSize));
+				problems.add(Message.of("problem.model_too_big", "Model is %s×%s×%s blocks (limit %s per side)",
+						decimal(size[0]), decimal(size[1]), decimal(size[2]), whole(limits.maxModelSize)));
 			}
 		}
 
-		List<String> partProblems = new ArrayList<>();
+		List<Message> partProblems = new ArrayList<>();
 		for (int i = 0; i < model.parts().size(); i++) {
 			BlueprintPart part = model.parts().get(i);
-			String problem = checkPart(part, settings, permissions, blocks, sizeBypass);
+			Message problem = checkPart(part, settings, permissions, blocks, sizeBypass);
 			if (problem != null) {
-				partProblems.add("Part " + (i + 1) + ": " + problem);
+				partProblems.add(Message.of("problem.part", "Part %s: %s", i + 1, problem));
 			}
 		}
 		problems.addAll(partProblems.subList(0, Math.min(MAX_LISTED, partProblems.size())));
 		if (partProblems.size() > MAX_LISTED) {
-			problems.add("…and " + (partProblems.size() - MAX_LISTED) + " more parts");
+			problems.add(Message.of("problem.more_parts", "…and %s more parts", partProblems.size() - MAX_LISTED));
 		}
 		return problems;
 	}
 
-	private static String checkPart(BlueprintPart part, Settings settings, PermissionView permissions, BlockInfo blocks,
+	private static Message checkPart(BlueprintPart part, Settings settings, PermissionView permissions, BlockInfo blocks,
 			boolean sizeBypass) {
 		if (part.kind() == DisplayKind.TEXT && !permissions.has(Permissions.TEXT)) {
-			return "text displays need permission";
+			return Message.of("problem.text", "text displays need permission");
 		}
 		BlueprintPart.DisplayProps props = part.props();
 		if (!permissions.has(Permissions.VISUAL)) {
-			if (props.isGlowing()) return "glowing needs permission";
-			if (props.hasBrightnessOverride()) return "custom brightness needs permission";
-			if (props.viewRange() != null && props.viewRange() > 1.0f) return "view range above 1 needs permission";
+			if (props.isGlowing()) return Message.of("problem.glow", "glowing needs permission");
+			if (props.hasBrightnessOverride()) return Message.of("problem.brightness", "custom brightness needs permission");
+			if (props.viewRange() != null && props.viewRange() > 1.0f) return Message.of("problem.view_range", "view range above 1 needs permission");
 		}
 		if (part.kind() == DisplayKind.BLOCK) {
 			String id = part.block().id();
 			if (!permissions.has(Permissions.RESTRICTED_BLOCKS) && settings.survival.restrictedBlocks.contains(id)) {
-				return id + " is restricted";
+				return Message.of("problem.restricted_block", "%s is restricted", new Message.BlockName(id));
 			}
 			if (!permissions.has(Permissions.FREE_BLOCK_STATES)) {
 				for (Map.Entry<String, String> entry : part.block().properties().entrySet()) {
 					if (settings.survival.allowedBlockStateKeys.contains(entry.getKey())) continue;
 					String defaultValue = blocks.defaultValue(id, entry.getKey());
 					if (defaultValue == null || !defaultValue.equals(entry.getValue())) {
-						return "block state " + entry.getKey() + "=" + entry.getValue() + " needs permission";
+						return Message.of("problem.block_state", "block state %s: %s needs permission",
+								Message.stateKey(entry.getKey()), Message.stateValue(entry.getValue()));
 					}
 				}
 			}
@@ -101,7 +103,7 @@ public final class BlueprintValidator {
 			float[] b = bounds(part, blocks);
 			float largest = Math.max(b[3] - b[0], Math.max(b[4] - b[1], b[5] - b[2]));
 			if (largest > settings.blueprint.maxPartSize + 1e-3) {
-				return String.format(Locale.ROOT, "%.1f blocks long (limit %.0f)", largest, settings.blueprint.maxPartSize);
+				return Message.of("problem.part_too_long", "%s blocks long (limit %s)", decimal(largest), whole(settings.blueprint.maxPartSize));
 			}
 		}
 		return null;
@@ -129,5 +131,13 @@ public final class BlueprintValidator {
 			}
 		}
 		return new float[] {total[3] - total[0], total[4] - total[1], total[5] - total[2]};
+	}
+
+	private static String decimal(double value) {
+		return String.format(Locale.ROOT, "%.1f", value);
+	}
+
+	private static String whole(double value) {
+		return String.format(Locale.ROOT, "%.0f", value);
 	}
 }

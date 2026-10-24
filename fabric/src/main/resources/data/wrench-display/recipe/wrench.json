@@ -2,17 +2,19 @@
 	"type": "minecraft:crafting_shaped",
 	"category": "equipment",
 	"pattern": [
-		" I",
-		"CI",
-		"I "
+		"  N",
+		" I ",
+		"S  "
 	],
 	"key": {
+		"N": "minecraft:netherite_ingot",
 		"I": "minecraft:iron_ingot",
-		"C": "minecraft:copper_ingot"
+		"S": "minecraft:stick"
 	},
 	"result": {
 		"id": "minecraft:stick",
 		"components": {
+			"!minecraft:cooking_fuel": {},
 			"minecraft:item_model": "wrench-display:wrench",
 			"minecraft:item_name": {
 				"translate": "item.wrench-display.wrench",
@@ -23,8 +25,7 @@
 					"type": "wrench"
 				}
 			},
-			"minecraft:max_stack_size": 1,
-			"!minecraft:cooking_fuel": {}
+			"minecraft:max_stack_size": 1
 		}
 	}
 }

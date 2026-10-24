@@ -7,13 +7,16 @@ import dev.harlik.wrenchdisplay.common.Settings;
 import dev.harlik.wrenchdisplay.common.blueprint.BlueprintParser;
 import dev.harlik.wrenchdisplay.common.blueprint.BlueprintValidator;
 import dev.harlik.wrenchdisplay.common.edit.DisplayTransform;
+import dev.harlik.wrenchdisplay.common.text.Message;
 import dev.harlik.wrenchdisplay.fabric.DisplayStore;
 import dev.harlik.wrenchdisplay.fabric.FabricDisplay;
 import dev.harlik.wrenchdisplay.fabric.FabricPermissions;
+import dev.harlik.wrenchdisplay.fabric.Lang;
 import dev.harlik.wrenchdisplay.fabric.ModItems;
 import dev.harlik.wrenchdisplay.fabric.Protection;
 import dev.harlik.wrenchdisplay.fabric.WrenchDisplay;
 import dev.harlik.wrenchdisplay.fabric.mixin.DisplayAccessor;
+import dev.harlik.wrenchdisplay.fabric.net.BlueprintPayloads;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -24,7 +27,10 @@ import net.minecraft.core.Holder;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
+//? if >=1.21.9 {
 import net.minecraft.network.chat.FontDescription;
+//?}
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundAddEntityPacket;
 import net.minecraft.network.protocol.game.ClientboundRemoveEntitiesPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
@@ -133,7 +139,7 @@ public final class BlueprintHandler {
 
 		PermissionView permissions = FabricPermissions.of(player);
 		if (!permissions.has(Permissions.USE_BLUEPRINT)) {
-			player.sendSystemMessage(Component.literal("You can't use blueprints here.").withStyle(ChatFormatting.RED), true);
+			player.sendSystemMessage(Lang.tr("blueprint.no_permission", "You can't use blueprints here.").withStyle(ChatFormatting.RED), true);
 			return InteractionResult.FAIL;
 		}
 		UUID id = ModItems.blueprintId(stack);
@@ -160,7 +166,7 @@ public final class BlueprintHandler {
 		int direction = Math.floorMod(newSlot - current, size) <= size / 2 ? +1 : -1;
 		ModItems.setRotation(stack, ModItems.rotation(stack) + direction);
 		player.connection.send(new ClientboundSetHeldSlotPacket(current));
-		player.sendSystemMessage(Component.literal("Blueprint rotation: " + ModItems.rotation(stack) * 90 + "°").withStyle(ChatFormatting.AQUA), true);
+		player.sendSystemMessage(Lang.tr("blueprint.rotation", "Blueprint rotation: %s°", ModItems.rotation(stack) * 90).withStyle(ChatFormatting.AQUA), true);
 		return true;
 	}
 
@@ -170,7 +176,12 @@ public final class BlueprintHandler {
 		return Math.max(1, Math.min(settings().blueprint.vanillaMaxLength, VANILLA_PROTOCOL_LIMIT));
 	}
 
+	/** The client mod's textured screen when the player has it, otherwise the vanilla dialog. */
 	static void openPasteDialog(ServerPlayer player) {
+		if (BlueprintPayloads.hasClientMod(player)) {
+			BlueprintPayloads.openPaste(player);
+			return;
+		}
 		int max = vanillaMaxLength();
 		CommonDialogData common = new CommonDialogData(
 				title(),
@@ -178,14 +189,14 @@ public final class BlueprintHandler {
 				true,
 				false,
 				DialogAction.CLOSE,
-				List.of(new PlainMessage(Component.literal("Paste a /summon command exported from BDEngine or a similar tool. "
-						+ "Several commands for one model can be pasted together.\nUp to " + max + " characters here; "
-						+ "bigger models need the Wrench Display client mod."), 300)),
-				List.of(new Input(INPUT_KEY, new TextInput(300, Component.literal("Command"), false, "", max,
+				List.of(new PlainMessage(Lang.tr("blueprint.dialog.body", "Paste a /summon command for block, item or text displays. "
+						+ "Several commands for one model can be pasted together.\nUp to %s characters here; "
+						+ "bigger models need the Wrench Display client mod.", max), 300)),
+				List.of(new Input(INPUT_KEY, new TextInput(300, Lang.tr("blueprint.dialog.input", "Command"), false, "", max,
 						Optional.of(new TextInput.MultilineOptions(Optional.empty(), Optional.of(160)))))));
-		ActionButton save = new ActionButton(new CommonButtonData(Component.literal("Save"), 150),
+		ActionButton save = new ActionButton(new CommonButtonData(Lang.tr("blueprint.dialog.save", "Save"), 150),
 				Optional.of(new CustomAll(PASTE_ACTION, Optional.empty())));
-		ActionButton cancel = new ActionButton(new CommonButtonData(Component.literal("Cancel"), 150), Optional.empty());
+		ActionButton cancel = new ActionButton(new CommonButtonData(Component.translatable("gui.cancel"), 150), Optional.empty());
 		player.openDialog(Holder.direct(new MultiActionDialog(common, List.of(save, cancel), Optional.empty(), 2)));
 	}
 
@@ -195,8 +206,12 @@ public final class BlueprintHandler {
 	 */
 	private static Component title() {
 		return Component.empty()
+				//? if >=1.21.9 {
 				.append(Component.literal("\uE000 ").withStyle(style -> style.withFont(new FontDescription.Resource(WrenchDisplay.id("gui")))))
-				.append(Component.literal("Blueprint"));
+				//?} else {
+				/*.append(Component.literal("\uE000 ").withStyle(style -> style.withFont(WrenchDisplay.id("gui"))))
+				*///?}
+				.append(Lang.tr("blueprint.dialog.title", "Blueprint"));
 	}
 
 	/** Called from the packet mixin for our dialog actions. */
@@ -211,7 +226,7 @@ public final class BlueprintHandler {
 	public static void submitPaste(ServerPlayer player, String text, int maxLength) {
 		ItemStack stack = player.getMainHandItem();
 		if (!ModItems.isBlueprint(stack)) {
-			error(player, "Hold the blueprint in your main hand to save the paste.");
+			error(player, Lang.tr("blueprint.hold_to_save", "Hold the blueprint in your main hand to save the paste."));
 			return;
 		}
 		PermissionView permissions = FabricPermissions.of(player);
@@ -220,18 +235,19 @@ public final class BlueprintHandler {
 		int maxParts = permissions.has(Permissions.BYPASS_BLUEPRINT_SIZE) ? settings.blueprint.maxPartsWithBypass : settings.blueprint.maxParts;
 		BlueprintParser.Result result = BlueprintParser.parse(text, new BlueprintParser.Limits(maxLength, maxParts));
 		if (!result.isOk()) {
-			String hint = text.length() >= maxLength - 1
-					? " The paste may have been cut off at " + maxLength + " characters; bigger models need the client mod." : "";
-			error(player, "Couldn't read the paste: " + result.error() + "." + hint);
+			error(player, Lang.tr("blueprint.unreadable", "Couldn't read the paste: %s.", Lang.of(result.error())));
+			if (text.length() >= maxLength - 1) {
+				error(player, Lang.tr("blueprint.cut_off", "The paste may have been cut off at %s characters; bigger models need the client mod.", maxLength));
+			}
 			return;
 		}
 		MinecraftServer server = player.level().getServer();
 		PreparedBlueprint prepared = PreparedBlueprint.prepare(result.model(), server.registryAccess());
-		List<String> problems = new ArrayList<>(prepared.problems());
+		List<Message> problems = new ArrayList<>(prepared.problems());
 		problems.addAll(BlueprintValidator.validate(result.model(), settings, permissions, FabricBlockInfo.INSTANCE));
 		if (!problems.isEmpty()) {
-			error(player, "This model can't be used:");
-			problems.forEach(p -> player.sendSystemMessage(Component.literal(" • " + p).withStyle(ChatFormatting.RED)));
+			error(player, Lang.tr("blueprint.unusable", "This model can't be used:"));
+			problems.forEach(p -> bullet(player, Lang.of(p)));
 			return;
 		}
 		UUID id;
@@ -239,29 +255,33 @@ public final class BlueprintHandler {
 			id = BlueprintStore.save(server, text, player.getUUID(), prepared);
 		} catch (IOException e) {
 			WrenchDisplay.LOGGER.error("Could not save a blueprint", e);
-			error(player, "The server couldn't save the blueprint.");
+			error(player, Lang.tr("blueprint.save_failed", "The server couldn't save the blueprint."));
 			return;
 		}
 		ModItems.fillBlueprint(stack, id, summary(prepared));
-		player.sendSystemMessage(Component.literal("Blueprint saved: " + prepared.parts().size()
-				+ " parts. Right-click a block to place it, sneak + scroll to rotate.").withStyle(ChatFormatting.AQUA));
+		player.sendSystemMessage(Lang.tr("blueprint.saved", "Blueprint saved: %s parts. Right-click a block to place it, sneak + scroll to rotate.",
+				prepared.parts().size()).withStyle(ChatFormatting.AQUA));
 	}
 
 	private static List<Component> summary(PreparedBlueprint prepared) {
 		List<Component> lines = new ArrayList<>();
 		float[] size = prepared.model().size();
-		lines.add(Component.literal(String.format(Locale.ROOT, "%d parts · %.1f×%.1f×%.1f blocks",
-				prepared.parts().size(), size[0], size[1], size[2])).withStyle(ChatFormatting.GRAY));
+		lines.add(Lang.tr("blueprint.lore.size", "%s parts · %s×%s×%s blocks", prepared.parts().size(),
+				decimal(size[0]), decimal(size[1]), decimal(size[2])).withStyle(ChatFormatting.GRAY));
 		Map<String, Integer> totals = new LinkedHashMap<>();
+		Map<String, Materials.Cost> byGroup = new LinkedHashMap<>();
 		for (Materials.Cost cost : Materials.costs(prepared)) {
-			if (cost != null) totals.merge(cost.label(), cost.count(), Integer::sum);
+			if (cost == null) continue;
+			totals.merge(cost.group(), cost.count(), Integer::sum);
+			byGroup.putIfAbsent(cost.group(), cost);
 		}
 		totals.entrySet().stream()
 				.sorted((a, b) -> b.getValue() - a.getValue())
 				.limit(4)
-				.forEach(e -> lines.add(Component.literal(e.getValue() + "× " + e.getKey()).withStyle(ChatFormatting.DARK_GRAY)));
+				.forEach(e -> lines.add(Lang.tr("material.amount", "%s× %s", e.getValue(), byGroup.get(e.getKey()).label())
+						.withStyle(ChatFormatting.DARK_GRAY)));
 		if (totals.size() > 4) {
-			lines.add(Component.literal("…and " + (totals.size() - 4) + " more").withStyle(ChatFormatting.DARK_GRAY));
+			lines.add(Lang.tr("blueprint.lore.more", "…and %s more", totals.size() - 4).withStyle(ChatFormatting.DARK_GRAY));
 		}
 		return lines;
 	}
@@ -273,16 +293,16 @@ public final class BlueprintHandler {
 		ServerLevel level = player.level();
 		PreparedBlueprint prepared = BlueprintStore.load(level.getServer(), id);
 		if (prepared == null) {
-			error(player, "This blueprint isn't stored on this server. Sneak + right-click to paste it again.");
+			error(player, Lang.tr("blueprint.unknown", "This blueprint isn't stored on this server. Sneak + right-click to paste it again."));
 			return;
 		}
 		Settings settings = settings();
 		// Check with the placer's permissions: the blueprint may have been made by someone with more rights.
-		List<String> problems = new ArrayList<>(prepared.problems());
+		List<Message> problems = new ArrayList<>(prepared.problems());
 		problems.addAll(BlueprintValidator.validate(prepared.model(), settings, permissions, FabricBlockInfo.INSTANCE));
 		if (!problems.isEmpty()) {
-			error(player, "You can't place this blueprint:");
-			problems.forEach(p -> player.sendSystemMessage(Component.literal(" • " + p).withStyle(ChatFormatting.RED)));
+			error(player, Lang.tr("blueprint.cannot_place", "You can't place this blueprint:"));
+			problems.forEach(p -> bullet(player, Lang.of(p)));
 			return;
 		}
 
@@ -291,13 +311,13 @@ public final class BlueprintHandler {
 		List<Display> parts = prepared.create(level, anchor.getX() + 0.5, anchor.getY() + 0.5, anchor.getZ() + 0.5, rotation);
 		for (Display part : parts) {
 			if (!Protection.canBuild(player, center(part))) {
-				error(player, "Part of the model would be in an area you can't build in.");
+				error(player, Lang.tr("protection.denied_model", "Part of the model would be in an area you can't build in."));
 				return;
 			}
 		}
 		if (!permissions.has(Permissions.BYPASS_CHUNK_LIMIT)
 				&& DisplayStore.countInChunk(level, anchor.getX(), anchor.getZ()) + parts.size() > settings.survival.maxDisplaysPerChunk) {
-			error(player, "This chunk can't hold " + parts.size() + " more displays (limit " + settings.survival.maxDisplaysPerChunk + ").");
+			error(player, Lang.tr("blueprint.chunk_full", "This chunk can't hold %s more displays (limit %s).", parts.size(), settings.survival.maxDisplaysPerChunk));
 			return;
 		}
 
@@ -305,11 +325,11 @@ public final class BlueprintHandler {
 		List<ItemStack> taken = null;
 		if (consume) {
 			List<Materials.Cost> costs = Materials.costs(prepared);
-			List<String> missing = Materials.missing(player.getInventory(), costs);
+			List<Component> missing = Materials.missing(player.getInventory(), costs);
 			if (!missing.isEmpty()) {
-				error(player, "Missing materials:");
-				missing.stream().limit(8).forEach(m -> player.sendSystemMessage(Component.literal(" • " + m).withStyle(ChatFormatting.RED)));
-				if (missing.size() > 8) player.sendSystemMessage(Component.literal(" …and " + (missing.size() - 8) + " more").withStyle(ChatFormatting.RED));
+				error(player, Lang.tr("blueprint.missing_materials", "Missing materials:"));
+				missing.stream().limit(8).forEach(m -> bullet(player, m));
+				if (missing.size() > 8) bullet(player, Lang.tr("blueprint.lore.more", "…and %s more", missing.size() - 8));
 				return;
 			}
 			taken = Materials.take(player.getInventory(), costs);
@@ -326,7 +346,7 @@ public final class BlueprintHandler {
 		}
 		clearPreview(player);
 		level.playSound(null, anchor, SoundEvents.BOOK_PUT, SoundSource.BLOCKS, 1.0f, 1.0f);
-		player.sendSystemMessage(Component.literal("Placed " + parts.size() + " parts. Use the wrench to adjust them.").withStyle(ChatFormatting.AQUA), true);
+		player.sendSystemMessage(Lang.tr("blueprint.placed", "Placed %s parts. Use the wrench to adjust them.", parts.size()).withStyle(ChatFormatting.AQUA), true);
 	}
 
 	// --- preview -------------------------------------------------------------------------------
@@ -339,14 +359,14 @@ public final class BlueprintHandler {
 			if (id == null) {
 				clearPreview(player);
 				if (ModItems.isBlueprint(stack) && now % HUD_INTERVAL == 0) {
-					player.sendSystemMessage(Component.literal("Blank blueprint · right-click to paste a model").withStyle(ChatFormatting.GRAY), true);
+					player.sendSystemMessage(Lang.tr("blueprint.hud_blank", "Blank blueprint · right-click to paste a model").withStyle(ChatFormatting.GRAY), true);
 				}
 				continue;
 			}
 			updatePreview(player, id, ModItems.rotation(stack));
 			if (now % HUD_INTERVAL == 0) {
-				player.sendSystemMessage(Component.literal("Blueprint · rotation " + ModItems.rotation(stack) * 90
-						+ "° · right-click to place · sneak + scroll to rotate").withStyle(ChatFormatting.AQUA), true);
+				player.sendSystemMessage(Lang.tr("blueprint.hud", "Blueprint · rotation %s° · right-click to place · sneak + scroll to rotate",
+						ModItems.rotation(stack) * 90).withStyle(ChatFormatting.AQUA), true);
 			}
 		}
 	}
@@ -413,7 +433,16 @@ public final class BlueprintHandler {
 		return display.position().add(local.x, local.y, local.z);
 	}
 
-	private static void error(ServerPlayer player, String message) {
-		player.sendSystemMessage(Component.literal(message).withStyle(ChatFormatting.RED));
+	private static void error(ServerPlayer player, MutableComponent message) {
+		player.sendSystemMessage(message.withStyle(ChatFormatting.RED));
+	}
+
+	/** A " • item" line under an error. */
+	private static void bullet(ServerPlayer player, Component line) {
+		player.sendSystemMessage(Lang.tr("bullet", " • %s", line).withStyle(ChatFormatting.RED));
+	}
+
+	private static String decimal(float value) {
+		return String.format(Locale.ROOT, "%.1f", value);
 	}
 }

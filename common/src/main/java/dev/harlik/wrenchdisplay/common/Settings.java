@@ -51,7 +51,7 @@ public final class Settings {
 	}
 
 	public static final class Blueprint {
-		/** Max paste length on the client-mod screen. Real BDEngine models run to 60 KB and more. */
+		/** Max paste length on the client-mod screen. Real exported models run to 60 KB and more. */
 		public int maxLength = 131072;
 		/**
 		 * Max paste length in the vanilla dialog. The protocol can't carry more than about 16000 characters

@@ -3,7 +3,7 @@ plugins {
 }
 
 // Pure Java core shared by the Fabric mod and the Paper plugin.
-// Targets Java 17 so the backports down to 1.19.4 can reuse it unchanged.
+// Targets Java 21 (what Minecraft 1.21 runs on) so the backports down to 1.21 can reuse it unchanged.
 // JOML and Gson are provided at runtime by Minecraft (and by Paper).
 dependencies {
 	compileOnly "org.joml:joml:${project.joml_version}"
@@ -28,7 +28,7 @@ java {
 }
 
 tasks.withType(JavaCompile).configureEach {
-	it.options.release = 17
+	it.options.release = 21
 	it.options.encoding = 'UTF-8'
 }
 

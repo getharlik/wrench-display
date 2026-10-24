@@ -4,6 +4,7 @@ import dev.harlik.wrenchdisplay.common.DisplayMeta;
 import dev.harlik.wrenchdisplay.common.PermissionView;
 import dev.harlik.wrenchdisplay.common.Permissions;
 import dev.harlik.wrenchdisplay.common.Settings;
+import dev.harlik.wrenchdisplay.common.text.Message;
 import org.junit.jupiter.api.Test;
 
 import java.nio.file.Files;
@@ -34,27 +35,31 @@ class BlueprintValidatorTest {
 		}
 	};
 
+	private static List<String> english(List<Message> messages) {
+		return messages.stream().map(Message::toFallbackString).toList();
+	}
+
 	@Test
 	void textPartsNeedPermission() {
-		List<String> problems = BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings,
-				node -> !node.equals(Permissions.TEXT), SHAPES);
+		List<String> problems = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings,
+				node -> !node.equals(Permissions.TEXT), SHAPES));
 		assertTrue(problems.stream().anyMatch(p -> p.contains("text displays need permission")), problems.toString());
 	}
 
 	@Test
 	void realShapesKeepStretchedCandlesWithinLimits() {
 		PermissionView textOnly = node -> node.equals(Permissions.TEXT);
-		List<String> withShapes = BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, SHAPES);
+		List<String> withShapes = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, SHAPES));
 		assertEquals(List.of(), withShapes);
-		List<String> fullCubes = BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, BlueprintValidator.BlockInfo.NONE);
+		List<String> fullCubes = english(BlueprintValidator.validate(parseOk(fixture("model2.txt")), settings, textOnly, BlueprintValidator.BlockInfo.NONE));
 		assertTrue(fullCubes.stream().anyMatch(p -> p.contains("blocks long")), "a full cube stretched 5× is too long: " + fullCubes);
 	}
 
 	@Test
 	void sizeLimitAndBypass() {
 		BlueprintModel wide = parseOk("summon block_display ~ ~ ~ {block_state:{Name:\"stone\"}}\nsummon block_display ~7 ~ ~ {block_state:{Name:\"stone\"}}");
-		assertTrue(BlueprintValidator.validate(wide, settings, PermissionView.DEFAULTS, SHAPES).get(0).startsWith("Model is 8.0×1.0×1.0"));
-		assertEquals(List.of(), BlueprintValidator.validate(wide, settings, node -> node.equals(Permissions.BYPASS_BLUEPRINT_SIZE), SHAPES));
+		assertTrue(english(BlueprintValidator.validate(wide, settings, PermissionView.DEFAULTS, SHAPES)).get(0).startsWith("Model is 8.0×1.0×1.0"));
+		assertEquals(List.of(), english(BlueprintValidator.validate(wide, settings, node -> node.equals(Permissions.BYPASS_BLUEPRINT_SIZE), SHAPES)));
 	}
 
 	@Test
@@ -69,12 +74,12 @@ class BlueprintValidatorTest {
 			case "persistent" -> "false";
 			default -> null;
 		};
-		List<String> problems = BlueprintValidator.validate(model, settings, PermissionView.DEFAULTS, leafDefaults);
+		List<String> problems = english(BlueprintValidator.validate(model, settings, PermissionView.DEFAULTS, leafDefaults));
 		assertEquals(List.of(
-				"Part 1: minecraft:barrier is restricted",
+				"Part 1: barrier is restricted",
 				"Part 2: glowing needs permission",
-				"Part 4: block state distance=1 needs permission"), problems);
-		assertEquals(List.of(), BlueprintValidator.validate(model, settings, PermissionView.ALL, leafDefaults));
+				"Part 4: block state distance: 1 needs permission"), problems);
+		assertEquals(List.of(), english(BlueprintValidator.validate(model, settings, PermissionView.ALL, leafDefaults)));
 	}
 
 	@Test

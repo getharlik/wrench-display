@@ -58,7 +58,7 @@ class PropertyEditorTest {
 
 	@Test
 	void rotationKeepsShearAndCentre() {
-		// sheared matrix from the BDEngine sample (no clean rotation/scale decomposition exists)
+		// sheared matrix from a sample model (no clean rotation/scale decomposition exists)
 		Matrix4f sheared = new Matrix4f(
 				1f, 0f, 0f, 0f,
 				0f, 0.9531448656f, 0.3025142397f, 0f,
@@ -164,7 +164,7 @@ class PropertyEditorTest {
 	void describeShowsValueAndStep() {
 		FakeDisplay d = new FakeDisplay(DisplayKind.BLOCK, new Matrix4f().scale(2, 1, 1));
 		WrenchSession s = new WrenchSession();
-		assertEquals("Scale X: 2.000  [step 1/8 · 5°]", PropertyEditor.describe(d, EditProperty.SCALE_X, s, settings, survival));
-		assertEquals("Glow: off", PropertyEditor.describe(d, EditProperty.GLOW, s, settings, survival));
+		assertEquals("Scale X: 2.000  [step 1/8 · 5°]", PropertyEditor.describe(d, EditProperty.SCALE_X, s, settings, survival).toFallbackString());
+		assertEquals("Glow: off", PropertyEditor.describe(d, EditProperty.GLOW, s, settings, survival).toFallbackString());
 	}
 }

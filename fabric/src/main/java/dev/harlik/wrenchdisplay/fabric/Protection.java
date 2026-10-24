@@ -1,6 +1,6 @@
 package dev.harlik.wrenchdisplay.fabric;
 
-import eu.pb4.common.protection.api.CommonProtection;
+import dev.harlik.wrenchdisplay.fabric.compat.Compat;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.phys.Vec3;
@@ -18,6 +18,6 @@ public final class Protection {
 		if (!player.level().mayInteract(player, pos)) {
 			return false;
 		}
-		return CommonProtection.canPlaceBlock(player.level(), pos, player.nameAndId(), player);
+		return Compat.canPlaceBlock(player, pos);
 	}
 }

@@ -7,7 +7,7 @@ import org.joml.Vector3f;
 /**
  * Wrench edits as delta matrices applied to a display's existing transformation.
  *
- * <p>The full matrix is never decomposed and rebuilt, so sheared transforms (common in BDEngine exports)
+ * <p>The full matrix is never decomposed and rebuilt, so sheared transforms (common in exported models)
  * keep their shape. All matrices are in the display entity's local space (entity position = origin);
  * displays placed by this mod have no entity rotation, so local axes equal world axes.
  */

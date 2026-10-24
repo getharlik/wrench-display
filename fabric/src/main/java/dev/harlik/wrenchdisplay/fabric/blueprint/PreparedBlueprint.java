@@ -7,6 +7,8 @@ import dev.harlik.wrenchdisplay.common.blueprint.BlueprintModel;
 import dev.harlik.wrenchdisplay.common.blueprint.BlueprintPart;
 import dev.harlik.wrenchdisplay.common.edit.DisplayKind;
 import dev.harlik.wrenchdisplay.common.math.Matrices;
+import dev.harlik.wrenchdisplay.common.text.Message;
+import dev.harlik.wrenchdisplay.fabric.compat.DisplayTypes;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
@@ -19,7 +21,6 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Brightness;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
@@ -39,7 +40,7 @@ import java.util.Optional;
 public final class PreparedBlueprint {
 	private final BlueprintModel model;
 	private final List<Part> parts;
-	private final List<String> problems;
+	private final List<Message> problems;
 
 	public record Part(BlueprintPart source, BlockState block, ItemStack item, Component text) {
 		public DisplayKind kind() {
@@ -47,7 +48,7 @@ public final class PreparedBlueprint {
 		}
 	}
 
-	private PreparedBlueprint(BlueprintModel model, List<Part> parts, List<String> problems) {
+	private PreparedBlueprint(BlueprintModel model, List<Part> parts, List<Message> problems) {
 		this.model = model;
 		this.parts = parts;
 		this.problems = problems;
@@ -62,13 +63,23 @@ public final class PreparedBlueprint {
 	}
 
 	/** Parts that could not be built (unknown block or item ids, invalid data); empty when everything is fine. */
-	public List<String> problems() {
+	public List<Message> problems() {
 		return problems;
+	}
+
+	/** A part that can't be built; caught per part so the player sees every problem at once. */
+	private static final class PartProblem extends IllegalArgumentException {
+		final Message message;
+
+		PartProblem(Message message) {
+			super(message.toFallbackString());
+			this.message = message;
+		}
 	}
 
 	public static PreparedBlueprint prepare(BlueprintModel model, HolderLookup.Provider registries) {
 		List<Part> parts = new ArrayList<>();
-		List<String> problems = new ArrayList<>();
+		List<Message> problems = new ArrayList<>();
 		for (int i = 0; i < model.parts().size(); i++) {
 			BlueprintPart part = model.parts().get(i);
 			try {
@@ -77,8 +88,8 @@ public final class PreparedBlueprint {
 					case ITEM -> parts.add(new Part(part, null, itemStack(part.item(), registries), null));
 					case TEXT -> parts.add(new Part(part, null, null, text(part.text(), registries)));
 				}
-			} catch (IllegalArgumentException e) {
-				problems.add("Part " + (i + 1) + ": " + e.getMessage());
+			} catch (PartProblem e) {
+				problems.add(Message.of("problem.part", "Part %s: %s", i + 1, e.message));
 			}
 		}
 		return new PreparedBlueprint(model, parts, problems);
@@ -88,7 +99,7 @@ public final class PreparedBlueprint {
 		Identifier id = Identifier.tryParse(spec.id());
 		Optional<Block> block = id == null ? Optional.empty() : BuiltInRegistries.BLOCK.getOptional(id);
 		if (block.isEmpty()) {
-			throw new IllegalArgumentException("unknown block " + spec.id());
+			throw new PartProblem(Message.of("problem.unknown_block", "unknown block %s", spec.id()));
 		}
 		BlockState state = block.get().defaultBlockState();
 		for (Map.Entry<String, String> entry : spec.properties().entrySet()) {
@@ -111,7 +122,7 @@ public final class PreparedBlueprint {
 	static ItemStack itemStack(BlueprintPart.ItemSpec spec, HolderLookup.Provider registries) {
 		Identifier id = Identifier.tryParse(spec.id());
 		if (id == null || BuiltInRegistries.ITEM.getOptional(id).isEmpty()) {
-			throw new IllegalArgumentException("unknown item " + spec.id());
+			throw new PartProblem(Message.of("problem.unknown_item", "unknown item %s", spec.id()));
 		}
 		CompoundTag tag = new CompoundTag();
 		tag.putString("id", spec.id());
@@ -120,16 +131,16 @@ public final class PreparedBlueprint {
 			try {
 				tag.put("components", TagParser.parseCompoundFully(spec.componentsSnbt()));
 			} catch (Exception e) {
-				throw new IllegalArgumentException("unreadable item data for " + spec.id());
+				throw new PartProblem(Message.of("problem.item_data", "unreadable item data for %s", new Message.ItemName(spec.id())));
 			}
 		}
 		return ItemStack.CODEC.parse(registries.createSerializationContext(NbtOps.INSTANCE), tag).result()
-				.orElseThrow(() -> new IllegalArgumentException("invalid item data for " + spec.id()));
+				.orElseThrow(() -> new PartProblem(Message.of("problem.item_data", "unreadable item data for %s", new Message.ItemName(spec.id()))));
 	}
 
 	private static Component text(BlueprintPart.TextSpec spec, HolderLookup.Provider registries) {
 		return ComponentSerialization.CODEC.parse(registries.createSerializationContext(JsonOps.INSTANCE), JsonParser.parseString(spec.textJson()))
-				.result().orElseThrow(() -> new IllegalArgumentException("invalid text"));
+				.result().orElseThrow(() -> new PartProblem(Message.of("problem.text_data", "unreadable text")));
 	}
 
 	/**
@@ -142,12 +153,12 @@ public final class PreparedBlueprint {
 		for (Part part : parts) {
 			Display display = switch (part.kind()) {
 				case BLOCK -> {
-					Display.BlockDisplay block = EntityTypes.BLOCK_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+					Display.BlockDisplay block = DisplayTypes.BLOCK.create(level, EntitySpawnReason.COMMAND);
 					if (block != null) block.setBlockState(part.block());
 					yield block;
 				}
 				case ITEM -> {
-					Display.ItemDisplay item = EntityTypes.ITEM_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+					Display.ItemDisplay item = DisplayTypes.ITEM.create(level, EntitySpawnReason.COMMAND);
 					if (item != null) {
 						item.setItemStack(part.item().copy());
 						String mode = part.source().props().itemTransform();
@@ -160,7 +171,7 @@ public final class PreparedBlueprint {
 					yield item;
 				}
 				case TEXT -> {
-					Display.TextDisplay text = EntityTypes.TEXT_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+					Display.TextDisplay text = DisplayTypes.TEXT.create(level, EntitySpawnReason.COMMAND);
 					if (text != null) applyText(text, part);
 					yield text;
 				}

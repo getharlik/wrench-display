@@ -2,6 +2,7 @@ package dev.harlik.wrenchdisplay.fabric;
 
 import dev.harlik.wrenchdisplay.common.Settings;
 import dev.harlik.wrenchdisplay.fabric.blueprint.BlueprintHandler;
+import dev.harlik.wrenchdisplay.fabric.net.BlueprintPayloads;
 import dev.harlik.wrenchdisplay.fabric.wrench.WrenchHandler;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
@@ -36,6 +37,7 @@ public class WrenchDisplay implements ModInitializer {
 		DisplayStore.register();
 		WrenchHandler.register();
 		BlueprintHandler.register();
+		BlueprintPayloads.register();
 		CommandRegistrationCallback.EVENT.register((dispatcher, registryAccess, environment) -> WrenchCommand.register(dispatcher));
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> sendResourcePack(handler.player));
 	}

@@ -15,9 +15,12 @@ import dev.harlik.wrenchdisplay.common.edit.WrenchSession;
 import dev.harlik.wrenchdisplay.fabric.DisplayStore;
 import dev.harlik.wrenchdisplay.fabric.FabricDisplay;
 import dev.harlik.wrenchdisplay.fabric.FabricPermissions;
+import dev.harlik.wrenchdisplay.fabric.Lang;
 import dev.harlik.wrenchdisplay.fabric.ModItems;
 import dev.harlik.wrenchdisplay.fabric.Protection;
 import dev.harlik.wrenchdisplay.fabric.WrenchDisplay;
+import dev.harlik.wrenchdisplay.fabric.compat.Compat;
+import dev.harlik.wrenchdisplay.fabric.compat.DisplayTypes;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
@@ -28,22 +31,20 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.protocol.game.ClientboundSetHeldSlotPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.util.Prediction;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityTypes;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.SwingAnimation;
 import net.minecraft.world.item.context.BlockPlaceContext;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
@@ -133,7 +134,7 @@ public final class WrenchHandler {
 	private static void onRightClick(ServerPlayer player, BlockHitResult hit) {
 		PermissionView permissions = FabricPermissions.of(player);
 		if (!permissions.has(Permissions.USE_WRENCH)) {
-			notice(player, Component.literal("You can't use the wrench here.").withStyle(ChatFormatting.RED));
+			notice(player, Lang.tr("wrench.no_permission", "You can't use the wrench here.").withStyle(ChatFormatting.RED));
 			return;
 		}
 		Display target = findTarget(player);
@@ -215,12 +216,12 @@ public final class WrenchHandler {
 	private static Component denyReason(ServerPlayer player, FabricDisplay display, PermissionView permissions) {
 		DisplayMeta meta = display.meta();
 		if (meta == null) {
-			if (!permissions.has(Permissions.EDIT_FOREIGN)) return Component.literal("This display wasn't placed with a wrench.");
+			if (!permissions.has(Permissions.EDIT_FOREIGN)) return Lang.tr("wrench.foreign", "This display wasn't placed with a wrench.");
 		} else if (!meta.owner().equals(player.getUUID()) && !permissions.has(Permissions.EDIT_OTHERS)) {
-			return Component.literal("This display belongs to someone else.");
+			return Lang.tr("wrench.not_owner", "This display belongs to someone else.");
 		}
 		if (!Protection.canBuild(player, center(display))) {
-			return Component.literal("You can't build here.");
+			return Lang.tr("protection.denied", "You can't build here.");
 		}
 		return null;
 	}
@@ -237,7 +238,7 @@ public final class WrenchHandler {
 		List<EditProperty> available = available(player, focus, permissions);
 		EditProperty property = state.session.property(available);
 		if (property == EditProperty.REMOVE) {
-			notice(player, Component.literal("Right-click to remove").withStyle(ChatFormatting.YELLOW));
+			notice(player, Lang.tr("wrench.remove_hint", "Right-click to remove").withStyle(ChatFormatting.YELLOW));
 			return;
 		}
 		List<FabricDisplay> members = members(player, focus);
@@ -252,13 +253,13 @@ public final class WrenchHandler {
 			for (FabricDisplay member : members) {
 				if (!Protection.canBuild(player, center(member))) {
 					for (int i = 0; i < members.size(); i++) members.get(i).setTransformation(before.get(i));
-					notice(player, Component.literal("You can't build there.").withStyle(ChatFormatting.RED));
+					notice(player, Lang.tr("protection.denied_target", "You can't build there.").withStyle(ChatFormatting.RED));
 					return;
 				}
 			}
 		}
 		if (outcome == PropertyEditor.Outcome.LIMIT) {
-			notice(player, Component.literal(property.label() + ": survival limit reached").withStyle(ChatFormatting.RED));
+			notice(player, Lang.tr("wrench.limit", "%s: survival limit reached", Lang.of(property.message())).withStyle(ChatFormatting.RED));
 		}
 	}
 
@@ -290,31 +291,31 @@ public final class WrenchHandler {
 			if (blockState == null) blockState = blockItem.getBlock().defaultBlockState();
 			String id = BuiltInRegistries.BLOCK.getKey(blockState.getBlock()).toString();
 			if (!permissions.has(Permissions.RESTRICTED_BLOCKS) && settings.survival.restrictedBlocks.contains(id)) {
-				notice(player, Component.literal(id + " can't be placed as a display.").withStyle(ChatFormatting.RED));
+				notice(player, Lang.tr("wrench.restricted_block", "%s can't be placed as a display.", blockState.getBlock().getName()).withStyle(ChatFormatting.RED));
 				return;
 			}
 		} else {
 			pos = hit.getBlockPos().relative(hit.getDirection());
 		}
 		if (!Protection.canBuild(player, Vec3.atCenterOf(pos))) {
-			notice(player, Component.literal("You can't build here.").withStyle(ChatFormatting.RED));
+			notice(player, Lang.tr("protection.denied", "You can't build here.").withStyle(ChatFormatting.RED));
 			return;
 		}
 		if (!permissions.has(Permissions.BYPASS_CHUNK_LIMIT)
 				&& DisplayStore.countInChunk(level, pos.getX(), pos.getZ()) >= settings.survival.maxDisplaysPerChunk) {
-			notice(player, Component.literal("This chunk already has " + settings.survival.maxDisplaysPerChunk + " displays.").withStyle(ChatFormatting.RED));
+			notice(player, Lang.tr("wrench.chunk_full", "This chunk already has %s displays.", settings.survival.maxDisplaysPerChunk).withStyle(ChatFormatting.RED));
 			return;
 		}
 
 		Display display;
 		Matrix4f matrix = new Matrix4f();
 		if (blockState != null) {
-			Display.BlockDisplay block = EntityTypes.BLOCK_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+			Display.BlockDisplay block = DisplayTypes.BLOCK.create(level, EntitySpawnReason.COMMAND);
 			if (block == null) return;
 			block.setBlockState(blockState);
 			display = block;
 		} else {
-			Display.ItemDisplay item = EntityTypes.ITEM_DISPLAY.create(level, EntitySpawnReason.COMMAND);
+			Display.ItemDisplay item = DisplayTypes.ITEM.create(level, EntitySpawnReason.COMMAND);
 			if (item == null) return;
 			item.setItemStack(source.copyWithCount(1));
 			matrix.translation(0.5f, 0.5f, 0.5f); // item displays are centred; keep the entity at the block corner
@@ -330,7 +331,7 @@ public final class WrenchHandler {
 		level.addFreshEntity(display);
 		if (consume) source.shrink(1);
 
-		player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+		Compat.swingMainHand(player);
 		var sound = blockState != null ? blockState.getSoundType().getPlaceSound() : SoundEvents.ITEM_FRAME_ADD_ITEM;
 		level.playSound(null, pos, sound, SoundSource.BLOCKS, 1.0f, 1.0f);
 	}
@@ -346,13 +347,13 @@ public final class WrenchHandler {
 			if (meta != null && meta.refund() != null) {
 				ItemStack refund = DisplayStore.decodeItem(player.level().registryAccess(), meta.refund());
 				if (!refund.isEmpty()) {
-					player.getInventory().placeItemBackInInventory(refund, Prediction.SERVER_ONLY);
+					Compat.giveOrDrop(player, refund);
 				}
 			}
 			member.entity().discard();
 		}
 		state(player).target = null;
-		player.swing(InteractionHand.MAIN_HAND, SwingAnimation.DEFAULT, true);
+		Compat.swingMainHand(player);
 		player.level().playSound(null, BlockPos.containing(center(focus)), SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.BLOCKS, 1.0f, 1.0f);
 	}
 
@@ -394,7 +395,7 @@ public final class WrenchHandler {
 		Component line;
 		if (state.target == null) {
 			EditProperty property = state.session.property();
-			line = Component.literal("Wrench · " + property.label() + " · look at a display").withStyle(ChatFormatting.GRAY);
+			line = Lang.tr("wrench.hud_idle", "Wrench · %s · look at a display", Lang.of(property.message())).withStyle(ChatFormatting.GRAY);
 		} else {
 			FabricDisplay focus = new FabricDisplay(state.target);
 			Component denied = denyReason(player, focus, permissions);
@@ -402,10 +403,12 @@ public final class WrenchHandler {
 				line = denied.copy().withStyle(ChatFormatting.RED);
 			} else {
 				EditProperty property = state.session.property(available(player, focus, permissions));
-				String text = PropertyEditor.describe(focus, property, state.session, settings(), permissions);
+				MutableComponent text = Lang.of(PropertyEditor.describe(focus, property, state.session, settings(), permissions));
 				boolean group = focus.meta() != null && focus.meta().groupId() != null;
-				if (group) text += state.session.groupMode() ? "  [group]" : "  [part]";
-				line = Component.literal(text).withStyle(ChatFormatting.GOLD);
+				if (group) {
+					text.append(state.session.groupMode() ? Lang.tr("wrench.hud_group", "  [group]") : Lang.tr("wrench.hud_part", "  [part]"));
+				}
+				line = text.withStyle(ChatFormatting.GOLD);
 			}
 		}
 		player.sendSystemMessage(line, true);

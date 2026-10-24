@@ -1,0 +1,51 @@
+name: WrenchDisplay
+version: '${version}'
+main: dev.harlik.wrenchdisplay.paper.WrenchDisplayPlugin
+description: A wrench and a blueprint for placing and editing block, item and text displays.
+author: harlik
+api-version: '1.21.6'
+folia-supported: true
+
+permissions:
+  wrenchdisplay.use.wrench:
+    description: Use the wrench
+    default: true
+  wrenchdisplay.use.blueprint:
+    description: Use the blueprint
+    default: true
+  wrenchdisplay.bypass.offset:
+    description: Move displays further than maxOffset from where they were placed
+    default: op
+  wrenchdisplay.bypass.scale:
+    description: Scale displays outside minScale–maxScale
+    default: op
+  wrenchdisplay.bypass.chunklimit:
+    description: Place more than maxDisplaysPerChunk displays in a chunk
+    default: op
+  wrenchdisplay.bypass.cost:
+    description: Place displays and blueprints without using up items
+    default: op
+  wrenchdisplay.bypass.blueprintsize:
+    description: Place blueprints larger than maxModelSize / maxPartSize
+    default: op
+  wrenchdisplay.visual:
+    description: Glow, glow colour, brightness and view range
+    default: op
+  wrenchdisplay.blocks.restricted:
+    description: Use restricted blocks (barrier, light, portals, command blocks, …)
+    default: op
+  wrenchdisplay.blockstate.free:
+    description: Change block-state keys outside the survival list
+    default: op
+  wrenchdisplay.text:
+    description: Text displays in blueprints
+    default: op
+  wrenchdisplay.edit.others:
+    description: Edit displays someone else placed
+    default: op
+  wrenchdisplay.edit.foreign:
+    description: Edit displays not placed with the wrench
+    default: op
+  wrenchdisplay.admin:
+    description: The /wrenchdisplay command
+    default: op

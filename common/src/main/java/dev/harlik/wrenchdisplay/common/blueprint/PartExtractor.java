@@ -79,7 +79,7 @@ final class PartExtractor {
 			case "block_display" -> {
 				block = blockSpec(nbt.get("block_state"));
 				if (block == null) {
-					return null; // empty carrier, like BDEngine's root entity
+					return null; // empty carrier entity that only holds the passengers
 				}
 				kind = DisplayKind.BLOCK;
 			}

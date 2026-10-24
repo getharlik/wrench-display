@@ -4,6 +4,7 @@ import dev.harlik.wrenchdisplay.common.PermissionView;
 import dev.harlik.wrenchdisplay.common.Permissions;
 import dev.harlik.wrenchdisplay.common.Settings;
 import dev.harlik.wrenchdisplay.common.edit.DisplayTransform.Axis;
+import dev.harlik.wrenchdisplay.common.text.Message;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 
@@ -149,12 +150,17 @@ public final class PropertyEditor {
 		}
 	}
 
+	/** Vanilla dye names for {@link #GLOW_COLORS} (index 0, the default colour, has none). */
+	private static final String[] GLOW_COLOR_NAMES = {
+			null, "white", "orange", "magenta", "light_blue", "yellow", "lime", "pink", "gray",
+			"light_gray", "cyan", "purple", "blue", "brown", "green", "red", "black"};
+
 	/** Action bar text for the selected property, e.g. "Scale X: 1.250  [step 1/8 · 5°]". */
-	public static String describe(EditableDisplay focus, EditProperty property, WrenchSession session, Settings settings,
+	public static Message describe(EditableDisplay focus, EditProperty property, WrenchSession session, Settings settings,
 			PermissionView permissions) {
 		Matrix4f m = focus.transformation();
-		String value = switch (property) {
-			case MODE -> session.groupMode() ? "whole group" : "single part";
+		Object value = switch (property) {
+			case MODE -> session.groupMode() ? Message.of("mode.group", "whole group") : Message.of("mode.part", "single part");
 			case STEP -> StepTable.label(session.stepLevel());
 			case MOVE_X, MOVE_Y, MOVE_Z -> {
 				Vector3f center = DisplayTransform.center(m, focus.kind());
@@ -173,31 +179,44 @@ public final class PropertyEditor {
 			case SCALE_X, SCALE_Y, SCALE_Z -> format(DisplayTransform.scales(m)[property.ordinal() - EditProperty.SCALE_X.ordinal()]);
 			case BLOCK_STATE_KEY -> {
 				String key = selectedStateKey(focus, session, settings, permissions);
-				yield key == null ? "(none)" : key;
+				yield key == null ? none() : Message.stateKey(key);
 			}
 			case BLOCK_STATE_VALUE -> {
 				String key = selectedStateKey(focus, session, settings, permissions);
-				yield key == null ? "(none)" : key + "=" + focus.stateValue(key);
+				yield key == null ? none() : Message.of("hud.state_value", "%s: %s", Message.stateKey(key), Message.stateValue(focus.stateValue(key)));
 			}
-			case ITEM_TRANSFORM -> focus.itemTransform();
-			case BILLBOARD -> focus.billboard();
+			case ITEM_TRANSFORM -> Message.of("item_transform." + focus.itemTransform(), Message.humanize(focus.itemTransform()));
+			case BILLBOARD -> Message.of("billboard." + focus.billboard(), focus.billboard());
 			case SHADOW_RADIUS -> format(focus.shadowRadius());
 			case SHADOW_STRENGTH -> format(focus.shadowStrength());
 			case BRIGHTNESS_BLOCK, BRIGHTNESS_SKY -> {
 				int[] b = focus.brightness();
-				yield b == null ? "world light" : String.valueOf(b[property == EditProperty.BRIGHTNESS_BLOCK ? 0 : 1]);
+				yield b == null ? Message.of("hud.world_light", "world light") : String.valueOf(b[property == EditProperty.BRIGHTNESS_BLOCK ? 0 : 1]);
 			}
-			case GLOW -> focus.glowing() ? "on" : "off";
-			case GLOW_COLOR -> focus.glowColor() < 0 ? "default" : String.format(Locale.ROOT, "#%06X", focus.glowColor());
+			case GLOW -> focus.glowing() ? Message.of("hud.on", "on") : Message.of("hud.off", "off");
+			case GLOW_COLOR -> glowColorName(focus.glowColor());
 			case VIEW_RANGE -> format(focus.viewRange());
-			case REMOVE -> "right-click to remove";
+			case REMOVE -> Message.of("hud.remove_hint", "right-click to remove");
 		};
-		String text = property.label() + ": " + value;
 		if (property.isTransform() || property == EditProperty.SHADOW_RADIUS || property == EditProperty.SHADOW_STRENGTH
 				|| property == EditProperty.VIEW_RANGE) {
-			text += "  [step " + StepTable.label(session.stepLevel()) + "]";
+			return Message.of("hud.value_step", "%s: %s  [step %s]", property.message(), value, StepTable.label(session.stepLevel()));
 		}
-		return text;
+		return Message.of("hud.value", "%s: %s", property.message(), value);
+	}
+
+	private static Message none() {
+		return Message.of("hud.none", "(none)");
+	}
+
+	private static Object glowColorName(int rgb) {
+		if (rgb < 0) return Message.of("hud.default", "default");
+		for (int i = 1; i < GLOW_COLORS.length; i++) {
+			if (GLOW_COLORS[i] == rgb) {
+				return Message.vanilla("color.minecraft." + GLOW_COLOR_NAMES[i], Message.humanize(GLOW_COLOR_NAMES[i]));
+			}
+		}
+		return String.format(Locale.ROOT, "#%06X", rgb);
 	}
 
 	/** Block-state keys the player may change on this display. */

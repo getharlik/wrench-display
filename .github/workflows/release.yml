@@ -1,0 +1,43 @@
+# Publishes a release to Modrinth when a version tag is pushed:
+#   git tag v1.1 && git push origin v1.1
+# The tag must match `version` in gradle.properties, and CHANGELOG.md needs a "## 1.1" section.
+# Needs the MODRINTH_TOKEN repository secret (a Modrinth token with the "Create versions" scope).
+
+name: release
+on:
+  push:
+    tags: ['v*']
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: checkout repository
+        uses: actions/checkout@v6
+      - name: validate gradle wrapper
+        uses: gradle/actions/wrapper-validation@v6
+      - name: setup jdk
+        uses: actions/setup-java@v5
+        with:
+          java-version: |
+            21
+            25
+          distribution: 'microsoft'
+      - name: make gradle wrapper executable
+        run: chmod +x ./gradlew
+      - name: build
+        run: ./gradlew build
+      - name: game tests
+        run: ./gradlew runGameTest
+      - name: publish to Modrinth
+        env:
+          MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
+        run: python3 .github/scripts/publish_modrinth.py "${GITHUB_REF_NAME}"
+      - name: capture release files
+        uses: actions/upload-artifact@v7
+        with:
+          name: Release
+          path: |
+            fabric/versions/*/build/libs/*.jar
+            paper/build/libs/wrench-display-paper-*.jar
+            resourcepack/build/distributions/

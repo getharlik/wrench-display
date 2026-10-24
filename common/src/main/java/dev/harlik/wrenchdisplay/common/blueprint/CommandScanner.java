@@ -2,6 +2,7 @@ package dev.harlik.wrenchdisplay.common.blueprint;
 
 import dev.harlik.wrenchdisplay.common.snbt.SnbtException;
 import dev.harlik.wrenchdisplay.common.snbt.SnbtReader;
+import dev.harlik.wrenchdisplay.common.text.Message;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -29,14 +30,14 @@ public final class CommandScanner {
 	public record Coordinate(double value, boolean relative) {
 		static Coordinate parse(String token, int position) {
 			if (token.startsWith("^")) {
-				throw new BlueprintException("Local coordinates (^) are not supported", position);
+				throw new BlueprintException(Message.of("paste.local_coordinates", "Local coordinates (^) are not supported"), position);
 			}
 			boolean relative = token.startsWith("~");
 			String number = relative ? token.substring(1) : token;
 			try {
 				return new Coordinate(number.isEmpty() ? 0 : Double.parseDouble(number), relative);
 			} catch (NumberFormatException e) {
-				throw new BlueprintException("Invalid coordinate '" + token + "'", position);
+				throw new BlueprintException(Message.of("paste.invalid_coordinate", "Invalid coordinate '%s'", token), position);
 			}
 		}
 	}
@@ -60,7 +61,7 @@ public final class CommandScanner {
 					nbt = (Map<String, Object>) result.value();
 					end = result.end();
 				} catch (SnbtException e) {
-					throw new BlueprintException(e.getMessage(), e.position());
+					throw new BlueprintException(Message.of("paste.syntax", "Syntax error: %s", e.getMessage()), e.position());
 				}
 			}
 			out.add(new Summon(matcher.group(1), x, y, z, nbt, position));

@@ -1,0 +1,76 @@
+plugins {
+	id 'java'
+	id 'xyz.jpenilla.run-paper' version "${run_paper_version}"
+}
+
+repositories {
+	maven {
+		name = 'PaperMC'
+		url = 'https://repo.papermc.io/repository/maven-public/'
+	}
+}
+
+configurations {
+	// :common is copied into the plugin jar (it has no runtime dependencies of its own).
+	bundle
+	implementation.extendsFrom bundle
+}
+
+dependencies {
+	compileOnly "io.papermc.paper:paper-api:${project.paper_api_version}"
+	bundle project(':common')
+}
+
+base {
+	archivesName = "${rootProject.name}-paper"
+}
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = 21
+	it.options.encoding = 'UTF-8'
+}
+
+processResources {
+	def version = project.version
+	inputs.property "version", version
+	filesMatching("paper-plugin.yml") {
+		expand "version": version
+	}
+}
+
+jar {
+	def projectName = rootProject.name
+	dependsOn configurations.bundle
+	from { configurations.bundle.collect { it.isDirectory() ? it : zipTree(it) } } {
+		exclude 'META-INF/MANIFEST.MF'
+	}
+	from(rootProject.file("LICENSE")) {
+		rename { "${it}_${projectName}" }
+	}
+}
+
+// ./gradlew :paper:runServer -PpaperVersion=1.21.6 starts another Paper version (default: the newest).
+tasks.named('runServer') {
+	def paperVersion = providers.gradleProperty('paperVersion').getOrElse(project.minecraft_version)
+	minecraftVersion(paperVersion)
+	jvmArgs('-Xmx1536m')
+	// Paper 1.21.x runs on Java 21, 26.x needs Java 25 or newer.
+	javaLauncher = javaToolchains.launcherFor {
+		languageVersion = paperVersion.startsWith('1.') ? JavaLanguageVersion.of(21) : JavaLanguageVersion.current()
+	}
+}
+
+// ./gradlew :paper:runFolia starts a Folia server with the plugin (Folia runs regions on separate threads).
+runPaper {
+	folia.registerTask()
+}
+
+tasks.named('runFolia') {
+	minecraftVersion(project.minecraft_version)
+}

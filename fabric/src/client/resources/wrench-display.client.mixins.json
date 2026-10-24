@@ -1,7 +1,7 @@
 {
 	"required": true,
 	"package": "dev.harlik.wrenchdisplay.fabric.client.mixin",
-	"compatibilityLevel": "JAVA_25",
+	"compatibilityLevel": "${mixin_java}",
 	"client": [
 	],
 	"injectors": {

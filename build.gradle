@@ -1,6 +1,8 @@
-subprojects {
-	group = project.group
-	version = project.version
+// Shared settings for the plain modules. The Fabric version projects (:fabric:<version>) are set up by
+// Stonecutter and fabric/build.gradle.kts instead.
+configure(subprojects.findAll { it.path in [':common', ':paper', ':resourcepack'] }) {
+	group = rootProject.group
+	version = rootProject.version
 
 	repositories {
 		mavenCentral()

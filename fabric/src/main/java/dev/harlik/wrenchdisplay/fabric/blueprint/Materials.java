@@ -2,9 +2,12 @@ package dev.harlik.wrenchdisplay.fabric.blueprint;
 
 import com.mojang.authlib.properties.Property;
 import dev.harlik.wrenchdisplay.common.blueprint.HeadTextures;
+import dev.harlik.wrenchdisplay.fabric.Lang;
 import dev.harlik.wrenchdisplay.fabric.ModItems;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -24,11 +27,18 @@ final class Materials {
 
 	/** One part's cost. {@code item} is AIR when the part can't be paid for (e.g. fire). */
 	record Cost(Item item, int count, String matchKey, Predicate<ItemStack> matches) {
-		String label() {
-			if (item == Items.AIR) return "an item that can't be obtained";
-			String name = BuiltInRegistries.ITEM.getKey(item).getPath().replace('_', ' ');
-			return matchKey != null && matchKey.startsWith("skin:") ? name + " (custom skin)"
-					: matchKey != null && matchKey.startsWith("components:") ? name + " (with custom data)" : name;
+		/** The item's translated name, marked when only special versions of it count. */
+		MutableComponent label() {
+			if (item == Items.AIR) return Lang.tr("material.unobtainable", "an item that can't be obtained");
+			MutableComponent name = Lang.item(item);
+			if (matchKey != null && matchKey.startsWith("skin:")) return Lang.tr("material.custom_skin", "%s (custom skin)", name);
+			if (matchKey != null && matchKey.startsWith("components:")) return Lang.tr("material.custom_data", "%s (with custom data)", name);
+			return name;
+		}
+
+		/** Costs that need the same items share this key. */
+		String group() {
+			return BuiltInRegistries.ITEM.getKey(item) + "|" + matchKey;
 		}
 	}
 
@@ -61,21 +71,20 @@ final class Materials {
 		return out;
 	}
 
-	/** Player-facing list of what's missing, e.g. "3× player head (custom skin)"; empty when everything is there. */
-	static List<String> missing(Inventory inventory, List<Cost> costs) {
+	/** What's missing, e.g. "3× Player Head (custom skin)"; empty when everything is there. */
+	static List<Component> missing(Inventory inventory, List<Cost> costs) {
 		Map<String, Integer> needed = new LinkedHashMap<>();
-		Map<String, Cost> byLabel = new LinkedHashMap<>();
+		Map<String, Cost> byGroup = new LinkedHashMap<>();
 		for (Cost cost : costs) {
 			if (cost == null) continue;
-			String group = BuiltInRegistries.ITEM.getKey(cost.item()) + "|" + cost.matchKey();
-			needed.merge(group, cost.count(), Integer::sum);
-			byLabel.putIfAbsent(group, cost);
+			needed.merge(cost.group(), cost.count(), Integer::sum);
+			byGroup.putIfAbsent(cost.group(), cost);
 		}
-		List<String> out = new ArrayList<>();
+		List<Component> out = new ArrayList<>();
 		needed.forEach((group, count) -> {
-			Cost cost = byLabel.get(group);
+			Cost cost = byGroup.get(group);
 			int have = cost.item() == Items.AIR ? 0 : count(inventory, cost.matches());
-			if (have < count) out.add((count - have) + "× " + cost.label());
+			if (have < count) out.add(Lang.tr("material.amount", "%s× %s", count - have, cost.label()));
 		});
 		return out;
 	}
@@ -120,7 +129,11 @@ final class Materials {
 	static String skinKey(ItemStack head) {
 		ResolvableProfile profile = head.get(DataComponents.PROFILE);
 		if (profile == null) return null;
+		//? if >=1.21.9 {
 		for (Property property : profile.partialProfile().properties().get("textures")) {
+		//?} else {
+		/*for (Property property : profile.properties().get("textures")) {
+		*///?}
 			String key = HeadTextures.skinKeyFromTextures(property.value());
 			if (key != null) return key;
 		}

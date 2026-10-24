@@ -1,7 +1,12 @@
 {
 	"pack": {
-		"description": "Wrench Display: models for the wrench and blueprint",
-		"min_format": [97, 1],
+		"description": "Wrench Display: models for the wrench and blueprint (Minecraft 1.21.6 – 26.3)",
+		"pack_format": 63,
+		"supported_formats": {
+			"min_inclusive": 63,
+			"max_inclusive": 97
+		},
+		"min_format": 63,
 		"max_format": 97
 	}
 }

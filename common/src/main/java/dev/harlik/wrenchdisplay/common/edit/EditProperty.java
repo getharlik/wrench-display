@@ -2,10 +2,12 @@ package dev.harlik.wrenchdisplay.common.edit;
 
 import dev.harlik.wrenchdisplay.common.PermissionView;
 import dev.harlik.wrenchdisplay.common.Permissions;
+import dev.harlik.wrenchdisplay.common.text.Message;
 
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /** Everything the wrench can change, in cycling order. */
@@ -55,8 +57,14 @@ public enum EditProperty {
 		this.kinds = kinds;
 	}
 
+	/** English name; also the fallback of {@link #message()}. */
 	public String label() {
 		return label;
+	}
+
+	/** Translatable name, e.g. {@code wrench-display.property.move_x}. */
+	public Message message() {
+		return Message.of("property." + name().toLowerCase(Locale.ROOT), label);
 	}
 
 	/** Null when everyone may use it. */

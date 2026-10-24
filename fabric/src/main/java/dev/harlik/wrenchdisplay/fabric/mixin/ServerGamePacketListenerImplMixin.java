@@ -2,7 +2,11 @@ package dev.harlik.wrenchdisplay.fabric.mixin;
 
 import dev.harlik.wrenchdisplay.fabric.blueprint.BlueprintHandler;
 import dev.harlik.wrenchdisplay.fabric.wrench.WrenchHandler;
+//? if >=26.3 {
 import net.minecraft.network.protocol.game.ServerboundPunchPacket;
+//?} else {
+/*import net.minecraft.network.protocol.game.ServerboundSwingPacket;
+*///?}
 import net.minecraft.network.protocol.game.ServerboundSetCarriedItemPacket;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
@@ -30,10 +34,19 @@ public abstract class ServerGamePacketListenerImplMixin {
 		}
 	}
 
+	//? if >=26.3 {
 	/** Left-click that hit nothing (no block, no entity): the wrench's "−" or "previous property" in the air. */
 	@Inject(method = "handlePunch", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
 			target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"))
 	private void wrenchDisplay$onPunch(ServerboundPunchPacket packet, CallbackInfo ci) {
 		WrenchHandler.onLeftClickAir(player);
 	}
+	//?} else {
+	/*// Before 26.3 a left-click into the air only shows up as an arm swing.
+	@Inject(method = "handleAnimate", at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+			target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"))
+	private void wrenchDisplay$onSwing(ServerboundSwingPacket packet, CallbackInfo ci) {
+		WrenchHandler.onLeftClickAir(player);
+	}
+	*///?}
 }

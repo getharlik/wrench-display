@@ -22,7 +22,7 @@ class BlueprintParserTest {
 	private static final float EPS = 1e-5f;
 
 	static String fixture(String name) {
-		try (var in = BlueprintParserTest.class.getResourceAsStream("/bdengine/" + name)) {
+		try (var in = BlueprintParserTest.class.getResourceAsStream("/models/" + name)) {
 			assertNotNull(in, "missing fixture " + name);
 			return new String(in.readAllBytes(), StandardCharsets.UTF_8);
 		} catch (IOException e) {
@@ -32,7 +32,7 @@ class BlueprintParserTest {
 
 	/** Every .txt in the fixture folder, so more exported models can simply be dropped in. */
 	static Stream<String> allFixtures() throws IOException, URISyntaxException {
-		Path dir = Path.of(BlueprintParserTest.class.getResource("/bdengine").toURI());
+		Path dir = Path.of(BlueprintParserTest.class.getResource("/models").toURI());
 		try (Stream<Path> files = Files.list(dir)) {
 			return files.map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".txt")).sorted().toList().stream();
 		}
@@ -40,7 +40,7 @@ class BlueprintParserTest {
 
 	static BlueprintModel parseOk(String text) {
 		BlueprintParser.Result result = BlueprintParser.parse(text, BlueprintParser.Limits.UNLIMITED);
-		assertTrue(result.isOk(), () -> "parse failed: " + result.error() + " at " + result.errorPosition());
+		assertTrue(result.isOk(), () -> "parse failed: " + result.error().toFallbackString() + " at " + result.errorPosition());
 		return result.model();
 	}
 
@@ -191,13 +191,13 @@ class BlueprintParserTest {
 		BlueprintParser.Limits limits = new BlueprintParser.Limits(1000, 1);
 		assertFalse(BlueprintParser.parse("  ", limits).isOk());
 		assertEquals("No summon command for a block, item or text display was found",
-				BlueprintParser.parse("say hello", limits).error());
-		assertTrue(BlueprintParser.parse("x".repeat(1001), limits).error().contains("limit is 1000"));
-		assertTrue(BlueprintParser.parse(fixture("model3_part2.txt"), new BlueprintParser.Limits(100_000, 1)).error()
+				BlueprintParser.parse("say hello", limits).error().toFallbackString());
+		assertTrue(BlueprintParser.parse("x".repeat(1001), limits).error().toFallbackString().contains("limit is 1000"));
+		assertTrue(BlueprintParser.parse(fixture("model3_part2.txt"), new BlueprintParser.Limits(100_000, 1)).error().toFallbackString()
 				.contains("2 parts; the limit is 1"));
-		assertTrue(BlueprintParser.parse("summon block_display ^ ^ ^ {}", limits).error().contains("Local coordinates"));
+		assertTrue(BlueprintParser.parse("summon block_display ^ ^ ^ {}", limits).error().toFallbackString().contains("Local coordinates"));
 		assertEquals("The commands contain no visible displays",
-				BlueprintParser.parse("summon block_display ~ ~ ~ {Passengers:[]}", limits).error());
+				BlueprintParser.parse("summon block_display ~ ~ ~ {Passengers:[]}", limits).error().toFallbackString());
 
 		BlueprintParser.Result broken = BlueprintParser.parse("summon block_display ~ ~ ~ {block_state:{Name:\"stone\"", limits);
 		assertFalse(broken.isOk());

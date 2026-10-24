@@ -13,8 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Dialog buttons with a custom action (the blueprint paste window) arrive here; there is no Fabric event for them. */
 @Mixin(ServerCommonPacketListenerImpl.class)
 public abstract class ServerCommonPacketListenerImplMixin {
+	// The thread-switch call takes a PacketProcessor since 1.21.9, a BlockableEventLoop before.
+	//? if >=1.21.9 {
 	@Inject(method = "handleCustomClickAction", cancellable = true, at = @At(value = "INVOKE", shift = At.Shift.AFTER,
 			target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/network/PacketProcessor;)V"))
+	//?} else {
+	/*@Inject(method = "handleCustomClickAction", cancellable = true, at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+			target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/util/thread/BlockableEventLoop;)V"))
+	*///?}
 	private void wrenchDisplay$onCustomClick(ServerboundCustomClickActionPacket packet, CallbackInfo ci) {
 		if ((Object) this instanceof ServerGamePacketListenerImpl game && packet.id().getNamespace().equals(WrenchDisplay.MOD_ID)) {
 			BlueprintHandler.onCustomClick(game.player, packet.id(), packet.payload());

@@ -1,0 +1,50 @@
+# Fabric build settings. Shared values first, then one table per Minecraft version.
+# See https://stonecutter.kikugie.dev/wiki/config/properties
+deps.fabric_loader = "0.20.1"
+loomx.loom_version = "1.19-SNAPSHOT"
+
+# Per version:
+#   mod.mc_compat      range in fabric.mod.json
+#   mod.mc_releases    releases to list as compatible on Modrinth
+#   deps.fabric_api    Fabric API build for that version
+#   deps.common_protection_api   1.x for obfuscated Minecraft (1.21.x), 2.x for 26.x
+#   deps.fabric_permissions_api  only before 26.1 (later Fabric API has its own permission API)
+
+["1.21.8"]
+mod.mc_compat = ">=1.21.6 <=1.21.8"
+mod.mc_releases = ["1.21.6", "1.21.7", "1.21.8"]
+deps.fabric_api = "0.136.1+1.21.8"
+deps.common_protection_api = "1.0.0"
+deps.fabric_permissions_api = "0.4.1"
+
+["1.21.10"]
+mod.mc_compat = ">=1.21.9 <=1.21.10"
+mod.mc_releases = ["1.21.9", "1.21.10"]
+deps.fabric_api = "0.138.4+1.21.10"
+deps.common_protection_api = "1.0.0"
+deps.fabric_permissions_api = "0.5.0"
+
+["1.21.11"]
+mod.mc_compat = "1.21.11"
+mod.mc_releases = ["1.21.11"]
+deps.fabric_api = "0.141.6+1.21.11"
+deps.common_protection_api = "1.0.0"
+deps.fabric_permissions_api = "0.6.1"
+
+["26.1.2"]
+mod.mc_compat = ">=26.1 <=26.1.2"
+mod.mc_releases = ["26.1", "26.1.1", "26.1.2"]
+deps.fabric_api = "0.155.3+26.1.2"
+deps.common_protection_api = "2.0.0"
+
+["26.2"]
+mod.mc_compat = "~26.2"
+mod.mc_releases = ["26.2"]
+deps.fabric_api = "0.161.0+26.2"
+deps.common_protection_api = "2.0.0"
+
+["26.3"]
+mod.mc_compat = "~26.3"
+mod.mc_releases = ["26.3"]
+deps.fabric_api = "0.165.0+26.3"
+deps.common_protection_api = "2.0.0"
